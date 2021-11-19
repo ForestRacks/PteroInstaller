@@ -593,6 +593,7 @@ function firewall_ufw {
   ufw allow ssh > /dev/null
   ufw allow http > /dev/null
   ufw allow https > /dev/null
+  ufw allow 25565:25580/tcp > /dev/null
 
   ufw enable
   ufw status numbered | sed '/v6/d'
