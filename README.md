@@ -16,7 +16,7 @@ chmod +x install.sh
 6) Lastly, do `systemctl restart wings` and you should be all set
 
 # Troubleshooting common issues:
-If you get a mysql error when you run the installer, you mostly ran the installer multiple times and the easiest way of fixing this is reinstalling and running the script again.
+If you get a mysql error when you run the installer, you mostly ran the installer multiple times. The easiest way of fixing this is reinstalling your OS and running the install script again.
 
 # Coming Soon:
 1) Cloudflare Proxy option
