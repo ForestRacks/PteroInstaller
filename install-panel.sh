@@ -592,8 +592,7 @@ function firewall_ufw {
   # pointing to /dev/null silences the command output
   ufw allow ssh > /dev/null
   ufw allow http > /dev/null
-  ufw allow https > /dev/null
-  ufw allow 25565:25580/tcp > /dev/null
+  ufw allow https > /dev/nulla
 
   ufw enable
   ufw status numbered | sed '/v6/d'
