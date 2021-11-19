@@ -32,7 +32,7 @@ echo "* Latest version is $VERSION"
 
 # download URLs
 DL_URL="https://github.com/pterodactyl/wings/releases/latest/download/wings_linux_amd64"
-CONFIGS_URL="https://raw.githubusercontent.com/vilhelmprytz/pterodactyl-installer/master/configs"
+CONFIGS_URL="https://raw.githubusercontent.com/ForestRacks/pterodactyl-installer/master/configs"
 
 COLOR_RED='\033[0;31m'
 COLOR_NC='\033[0m'
@@ -503,15 +503,6 @@ function main {
   # checks if the system is compatible with this installation script
   check_os_comp
 
-  print_brake 70
-  echo "* Pterodactyl Wings installation script"
-  echo "*"
-  echo "* Copyright (C) 2018 - 2020, Vilhelm Prytz, <vilhelm@prytznet.se>, et al."
-  echo "* https://github.com/vilhelmprytz/pterodactyl-installer"
-  echo "*"
-  echo "* This script is not associated with the official Pterodactyl Project."
-  echo "*"
-  echo "* Running $OS version $OS_VER."
   print_brake 70
 
   echo "* "
