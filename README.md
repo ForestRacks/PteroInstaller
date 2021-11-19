@@ -1,5 +1,5 @@
 # Forestracks Pterodactyl Installer
-Pterodactyl Panel installer for Forestracks customers.
+Pterodactyl Panel installer for Forestracks customers. This installer works on both Ubuntu and CentOS. Please carefully read all options for the best experience.
 
 # Installation:
 ```
