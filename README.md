@@ -21,3 +21,12 @@ chmod +x install.sh
 
 # Coming Soon:
 1) Cloudflare Proxy option
+
+## Contributors ✨
+
+Created and maintained by:
+1) [Zinidia](https://github.com/Zinidia)
+2) [Neon](https://github.com/DeveloperNeon)
+3) [Vilhelm Prytz](https://github.com/vilhelmprytz)
+4) [sam1370](https://github.com/sam1370)
+5) [Linux123123](https://github.com/Linux123123)
