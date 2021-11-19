@@ -54,7 +54,7 @@ CONFIGURE_LETSENCRYPT=false
 
 # download URLs
 PANEL_DL_URL="https://github.com/pterodactyl/panel/releases/latest/download/panel.tar.gz"
-CONFIGS_URL="https://raw.githubusercontent.com/vilhelmprytz/pterodactyl-installer/master/configs"
+CONFIGS_URL="https://raw.githubusercontent.com/ForestRacks/pterodactyl-installer/master/configs"
 
 # apt sources path
 SOURCES_PATH="/etc/apt/sources.list"
@@ -184,7 +184,7 @@ function detect_distro {
 
 function check_os_comp {
   if [ "$OS" == "ubuntu" ]; then
-    PHP_SOCKET="/run/php/php7.4-fpm.sock"
+    PHP_SOCKET="/run/php/php8.0-fpm.sock"
     if [ "$OS_VER_MAJOR" == "18" ]; then
       SUPPORTED=true
     elif [ "$OS_VER_MAJOR" == "20" ]; then
@@ -193,7 +193,7 @@ function check_os_comp {
       SUPPORTED=false
     fi
   elif [ "$OS" == "debian" ]; then
-    PHP_SOCKET="/run/php/php7.4-fpm.sock"
+    PHP_SOCKET="/run/php/php8.0-fpm.sock"
     if [ "$OS_VER_MAJOR" == "9" ]; then
       SUPPORTED=true
     elif [ "$OS_VER_MAJOR" == "10" ]; then
@@ -391,7 +391,7 @@ function ubuntu20_dep {
   apt update
 
   # Install Dependencies
-  apt -y install php7.4 php7.4-{cli,gd,mysql,pdo,mbstring,tokenizer,bcmath,xml,fpm,curl,zip} mariadb-server nginx tar unzip git redis-server redis
+  apt -y install php8.0 php8.0-{cli,gd,mysql,pdo,mbstring,tokenizer,bcmath,xml,fpm,curl,zip} mariadb-server nginx tar unzip git redis-server redis
 
   # enable services
   systemctl start mariadb
@@ -418,7 +418,7 @@ function ubuntu18_dep {
   apt update
 
   # Install Dependencies
-  apt -y install php7.4 php7.4-{cli,gd,mysql,pdo,mbstring,tokenizer,bcmath,xml,fpm,curl,zip} mariadb-server nginx tar unzip git redis-server redis
+  apt -y install php8.0 php8.0-{cli,gd,mysql,pdo,mbstring,tokenizer,bcmath,xml,fpm,curl,zip} mariadb-server nginx tar unzip git redis-server redis
 
   # enable services
   systemctl start mariadb
@@ -435,8 +435,7 @@ function debian_stretch_dep {
   # MariaDB need dirmngr
   apt -y install dirmngr
 
-  # install PHP 7.4 using sury's repo instead of PPA
-  # this guide shows how: https://vilhelmprytz.se/2018/08/22/install-php72-on-Debian-8-and-9.html
+  # install PHP 8.0 using sury's repo instead of PPA
   apt install ca-certificates apt-transport-https lsb-release -y
   wget -O /etc/apt/trusted.gpg.d/php.gpg https://packages.sury.org/php/apt.gpg
   echo "deb https://packages.sury.org/php/ $(lsb_release -sc) main" | tee /etc/apt/sources.list.d/php.list
@@ -448,7 +447,7 @@ function debian_stretch_dep {
   apt update
 
   # Install Dependencies
-  apt -y install php7.4 php7.4-{cli,gd,mysql,pdo,mbstring,tokenizer,bcmath,xml,fpm,curl,zip} mariadb-server nginx curl tar unzip git redis-server
+  apt -y install php8.0 php8.0-{cli,gd,mysql,pdo,mbstring,tokenizer,bcmath,xml,fpm,curl,zip} mariadb-server nginx curl tar unzip git redis-server
 
   # enable services
   systemctl start mariadb
@@ -465,8 +464,7 @@ function debian_dep {
   # MariaDB need dirmngr
   apt -y install dirmngr
 
-  # install PHP 7.4 using sury's repo instead of default 7.2 package (in buster repo)
-  # this guide shows how: https://vilhelmprytz.se/2018/08/22/install-php72-on-Debian-8-and-9.html
+  # install PHP 8.0 using sury's repo instead of default 7.2 package (in buster repo)
   apt install ca-certificates apt-transport-https lsb-release -y
   wget -O /etc/apt/trusted.gpg.d/php.gpg https://packages.sury.org/php/apt.gpg
   echo "deb https://packages.sury.org/php/ $(lsb_release -sc) main" | tee /etc/apt/sources.list.d/php.list
@@ -475,7 +473,7 @@ function debian_dep {
   apt update
 
   # install dependencies
-  apt -y install php7.4 php7.4-{cli,gd,mysql,pdo,mbstring,tokenizer,bcmath,xml,fpm,curl,zip} mariadb-server nginx curl tar unzip git redis-server
+  apt -y install php8.0 php8.0-{cli,gd,mysql,pdo,mbstring,tokenizer,bcmath,xml,fpm,curl,zip} mariadb-server nginx curl tar unzip git redis-server
 
   # enable services
   systemctl start mariadb
@@ -495,7 +493,7 @@ function centos7_dep {
   # SELinux tools
   yum install -y policycoreutils policycoreutils-python selinux-policy selinux-policy-targeted libselinux-utils setroubleshoot-server setools setools-console mcstrans
 
-  # add remi repo (php7.4)
+  # add remi repo (php8.0)
   yum install -y epel-release http://rpms.remirepo.net/enterprise/remi-release-7.rpm
   yum install -y yum-utils
   yum-config-manager -y --disable remi-php54
@@ -531,9 +529,9 @@ function centos8_dep {
   # SELinux tools
   dnf install -y policycoreutils selinux-policy selinux-policy-targeted setroubleshoot-server setools setools-console mcstrans
 
-  # add remi repo (php7.4)
+  # add remi repo (php8.0)
   dnf install -y epel-release http://rpms.remirepo.net/enterprise/remi-release-8.rpm
-  dnf module enable -y php:remi-7.4
+  dnf module enable -y php:remi-8.0
   dnf update -y
 
   dnf install -y php php-common php-fpm php-cli php-json php-mysqlnd php-gd php-mbstring php-pdo php-zip php-bcmath php-dom php-opcache
@@ -855,15 +853,6 @@ function main {
   # detect distro
   detect_distro
 
-  print_brake 70
-  echo "* Pterodactyl panel installation script"
-  echo "*"
-  echo "* Copyright (C) 2018 - 2020, Vilhelm Prytz, <vilhelm@prytznet.se>, et al."
-  echo "* https://github.com/vilhelmprytz/pterodactyl-installer"
-  echo "*"
-  echo "* This script is not associated with the official Pterodactyl Project."
-  echo "*"
-  echo "* Running $OS version $OS_VER."
   print_brake 70
 
   # checks if the system is compatible with this installation script
