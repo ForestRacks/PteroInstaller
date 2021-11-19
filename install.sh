@@ -33,6 +33,8 @@ wings=false
 
 output "Pterodactyl installation script"
 output "This script is not associated with the official Pterodactyl Project."
+output
+output "DISCLAIMER: This script is a work in progress so it may have issues and rerunning this script can cause issues, we suggest reinstalling if you need to rerun."
 
 output
 
