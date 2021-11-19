@@ -414,8 +414,9 @@ function firewall_ufw {
 
   # pointing to /dev/null silences the command output
   ufw allow ssh > /dev/null
-  ufw allow 8080 > /dev/null
-  ufw allow 2022 > /dev/null
+  ufw allow 8080 comment "pterodactyl wings" > /dev/null
+  ufw allow 2022 comment "pterodactyl sftp" > /dev/null
+  ufw allow 25565:25580/tcp comment "minecraft ports" > /dev/null
 
   [ "$CONFIGURE_LETSENCRYPT" == true ] && ufw allow http > /dev/null
   [ "$CONFIGURE_LETSENCRYPT" == true ] && ufw allow https > /dev/null
