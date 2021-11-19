@@ -891,7 +891,7 @@ function main {
 
   required_input email "Provide the email address that will be used to configure Let's Encrypt and Pterodactyl: " "Email cannot be empty"
 
-  echo -n "* Would you like to set up email so Pterodactyl can send emails to users (not recommended)? (y/N): "
+  echo -n "* Would you like to set up email so Pterodactyl can send emails to users (NOT RECOMMENDED)? (y/N): "
   read -r mailneeded
 
   # Initial admin account
@@ -955,10 +955,10 @@ function main {
   # If it's already true, this should be a no-brainer
   if [ "$CONFIGURE_LETSENCRYPT" == false ]; then
     echo "* Let's Encrypt is not going to be automatically configured by this script (either unsupported yet or user opted out)."
-    echo "* You can 'assume' Let's Encrypt, which means the script will download a nginx configuration that is configured to use a Let's Encrypt certificate but the script won't obtain the certificate for you."
-    echo "* If you assume SSL and do not obtain the certificate, your installation will not work."
+    echo "* CHOOSE NO if you're using an IP address as a FQDN because Let's Encrypt only provides SSL certificates for domains."
+    echo "* If you enable SSL and do not obtain a certificate, your installation will not work."
 
-    echo -n "* Assume SSL or not? (y/N): "
+    echo -n "* Enable SSL encryption? (y/N): "
     read -r ASSUME_SSL_INPUT
 
     if [[ "$ASSUME_SSL_INPUT" =~ [Yy] ]]; then
