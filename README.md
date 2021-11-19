@@ -2,15 +2,8 @@
 Pterodactyl Panel installer for Forestracks customers.
 
 Ubuntu Install:
-
-Curl:
 ```
-apt install -y curl
-```
-
-Pterodactyl installer:
-```
-curl -s https://raw.githubusercontent.com/ForestRacks/pterodactyl-installer/main/install.sh
+wget https://raw.githubusercontent.com/ForestRacks/pterodactyl-installer/main/install.sh
 chmod +x install.sh
 ./install.sh
 ```
