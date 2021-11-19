@@ -275,7 +275,7 @@ function configure {
     --password="$MYSQL_PASSWORD"
 
   # Email credentials manually set by user
-  if [[ "$mailneeded" =~ [Yy] ]]; then
+if [[ "$mailneeded" =~ [Yy] ]]; then
     php artisan p:environment:mail
   fi
 
@@ -891,7 +891,7 @@ function main {
 
   required_input email "Provide the email address that will be used to configure Let's Encrypt and Pterodactyl: " "Email cannot be empty"
 
-  echo -n "* Would you like to set up email credentials so that Pterodactyl can send emails to users (usually not required)? (y/N): "
+  echo -n "* Would you like to set up email so Pterodactyl can send emails to users (not recommended)? (y/N): "
   read -r mailneeded
 
   # Initial admin account
