@@ -884,9 +884,9 @@ function main {
   echo "* List of valid timezones here $(hyperlink "https://www.php.net/manual/en/timezones.php")"
 
   while [ -z "$timezone" ] || [[ ${valid_timezones} != *"$timezone_input"* ]]; do
-    echo -n "* Select timezone [Europe/Stockholm]: "
+    echo -n "* Select timezone [America/Chicago]: "
     read -r timezone_input
-    [ -z "$timezone_input" ] && timezone="Europe/Stockholm" || timezone=$timezone_input # because köttbullar!
+    [ -z "$timezone_input" ] && timezone="America/Chicago" || timezone=$timezone_input # because köttbullar!
   done
 
   required_input email "Provide the email address that will be used to configure Let's Encrypt and Pterodactyl: " "Email cannot be empty"
