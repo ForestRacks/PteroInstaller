@@ -2,6 +2,8 @@
 Pterodactyl Panel installer for Forestracks customers. This installer works on both Ubuntu and CentOS. Please carefully read all options for the best experience.
 
 ## Installation:
+1) Reinstall your machine if you changed anything before you run the installer.
+2) Download and run installer:
 ```
 wget https://raw.githubusercontent.com/ForestRacks/pterodactyl-installer/main/install.sh
 chmod +x install.sh
