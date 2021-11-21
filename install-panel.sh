@@ -1017,6 +1017,10 @@ function goodbye {
   echo "* Installation is using $WEBSERVER on $OS"
   echo "* Thank you for using this script."
   echo -e "* ${COLOR_RED}Note${COLOR_NC}: If you haven't configured the firewall: 80/443 (HTTP/HTTPS) is required to be open!"
+  echo "*"
+  echo "* To continue, you need to configure Wings to run with your panel"
+  echo -e "* ${COLOR_RED}Note${COLOR_NC}: Refer to the post installation steps now $(hyperlink 'https://github.com/ForestRacks/pterodactyl-installer#post-installation')"
+  
   print_brake 62
 }
 
