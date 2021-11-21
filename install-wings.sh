@@ -600,22 +600,11 @@ function main {
 function goodbye {
   echo ""
   print_brake 70
-  echo "* Wings installation completed"
+  echo "* Wings installer completed"
   echo "*"
   echo "* To continue, you need to configure Wings to run with your panel"
-  echo "* Please refer to the official guide, $(hyperlink 'https://pterodactyl.io/wings/1.0/installing.html#configure-daemon')"
+  echo -e "* ${COLOR_RED}Note${COLOR_NC}: Refer to the post installation steps now $(hyperlink 'https://github.com/ForestRacks/pterodactyl-installer#post-installation')"
   echo "*"
-  echo "* Once the configuration has been created (usually in '/etc/pterodactyl/config.yml')"
-  echo "* you can then start Wings manually to verify that it's working"
-  echo "*"
-  echo "* sudo wings"
-  echo "*"
-  echo "* Once you have verified that it is working, you can then start it as a service (runs in the background)"
-  echo "*"
-  echo "* systemctl start wings"
-  echo "*"
-  echo -e "* ${COLOR_RED}Note${COLOR_NC}: It is recommended to enable swap (for Docker, read more about it in official documentation)."
-  echo -e "* ${COLOR_RED}Note${COLOR_NC}: If you haven't configured your firewall, ports 8080 and 2022 needs to be open."
   print_brake 70
   echo ""
 }
