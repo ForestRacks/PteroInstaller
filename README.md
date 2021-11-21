@@ -24,6 +24,7 @@ chmod +x install.sh
 ## Coming Soon:
 1) Cloudflare Proxy option
 2) Improve Firewall
+3) Enable Swap
 
 ## Contributors ✨
 
