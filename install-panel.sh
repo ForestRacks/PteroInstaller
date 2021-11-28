@@ -386,9 +386,17 @@ function ubuntu20_dep {
 
   # Add "add-apt-repository" command
   apt -y install software-properties-common curl apt-transport-https ca-certificates gnupg
+  
+  # Add additional repositories for PHP, Redis, and MariaDB
+  LC_ALL=C.UTF-8 add-apt-repository -y ppa:ondrej/php
+  add-apt-repository -y ppa:chris-lea/redis-server
+  curl -sS https://downloads.mariadb.com/MariaDB/mariadb_repo_setup | sudo bash
 
   # Update repositories list
   apt update
+
+  # Add universe repository if you are on Ubuntu 18.04
+  apt-add-repository universe
 
   # Install Dependencies
   apt -y install php8.0 php8.0-{cli,gd,mysql,pdo,mbstring,tokenizer,bcmath,xml,fpm,curl,zip} mariadb-server nginx tar unzip git redis-server redis
@@ -408,7 +416,7 @@ function ubuntu18_dep {
   # Add "add-apt-repository" command
   apt -y install software-properties-common curl apt-transport-https ca-certificates gnupg
 
-  # Add PPA for PHP (we need 7.3+ and bionic only has 7.2)
+  # Add PPA for PHP (we want php 8.0 and bionic only has 7.2)
   LC_ALL=C.UTF-8 add-apt-repository -y ppa:ondrej/php
 
   # Add the MariaDB repo (bionic has mariadb version 10.1 and we need newer than that)
