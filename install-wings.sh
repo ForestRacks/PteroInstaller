@@ -32,7 +32,7 @@ echo "* Latest version is $VERSION"
 
 # download URLs
 DL_URL="https://github.com/pterodactyl/wings/releases/latest/download/wings_linux_amd64"
-CONFIGS_URL="https://raw.githubusercontent.com/ForestRacks/pterodactyl-installer/master/configs"
+CONFIGS_URL="https://raw.githubusercontent.com/ForestRacks/PteroInstaller/master/configs"
 
 COLOR_RED='\033[0;31m'
 COLOR_NC='\033[0m'
@@ -603,7 +603,7 @@ function goodbye {
   echo "* Wings installer completed"
   echo "*"
   echo "* To continue, you need to configure Wings to run with your panel"
-  echo -e "* ${COLOR_RED}Note${COLOR_NC}: Refer to the post installation steps now $(hyperlink 'https://github.com/ForestRacks/pterodactyl-installer#post-installation')"
+  echo -e "* ${COLOR_RED}Note${COLOR_NC}: Refer to the post installation steps now $(hyperlink 'https://github.com/ForestRacks/PteroInstaller#post-installation')"
   echo "*"
   print_brake 70
   echo ""
