@@ -73,5 +73,5 @@ while [ "$panel" == false ] && [ "$wings" == false ]; do
   esac
 done
 
-[ "$panel" == true ] && bash <(curl -s https://raw.githubusercontent.com/ForestRacks/pterodactyl-installer/main/install-panel.sh)
-[ "$wings" == true ] && bash <(curl -s https://raw.githubusercontent.com/ForestRacks/pterodactyl-installer/main/install-wings.sh)
+[ "$panel" == true ] && bash <(curl -s https://raw.githubusercontent.com/ForestRacks/PteroInstaller/main/install-panel.sh)
+[ "$wings" == true ] && bash <(curl -s https://raw.githubusercontent.com/ForestRacks/PteroInstaller/main/install-wings.sh)
