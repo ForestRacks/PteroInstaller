@@ -54,7 +54,7 @@ CONFIGURE_LETSENCRYPT=false
 
 # download URLs
 PANEL_DL_URL="https://github.com/pterodactyl/panel/releases/latest/download/panel.tar.gz"
-CONFIGS_URL="https://raw.githubusercontent.com/ForestRacks/pterodactyl-installer/master/configs"
+CONFIGS_URL="https://raw.githubusercontent.com/ForestRacks/PteroInstaller/master/configs"
 
 # apt sources path
 SOURCES_PATH="/etc/apt/sources.list"
@@ -1027,7 +1027,7 @@ function goodbye {
   echo -e "* ${COLOR_RED}Note${COLOR_NC}: If you haven't configured the firewall: 80/443 (HTTP/HTTPS) is required to be open!"
   echo "*"
   echo "* To continue, you need to configure Wings to run with your panel"
-  echo -e "* ${COLOR_RED}Note${COLOR_NC}: Refer to the post installation steps now $(hyperlink 'https://github.com/ForestRacks/pterodactyl-installer#post-installation')"
+  echo -e "* ${COLOR_RED}Note${COLOR_NC}: Refer to the post installation steps now $(hyperlink 'https://github.com/ForestRacks/PteroInstaller#post-installation')"
   
   print_brake 62
 }
