@@ -40,6 +40,9 @@ error() {
   echo -e "* ${COLOR_RED}ERROR${COLOR_NC}: $1"
   echo ""
 }
+basic=false
+standard=false
+advanced=false
 
 panel=false
 wings=false
