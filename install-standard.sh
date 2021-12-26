@@ -318,6 +318,117 @@ function install_pteroq {
   echo "* Installed pteroq!"
 }
 
+function install_docker {
+  echo "* Installing docker .."
+  if [ "$OS" == "debian" ]; then
+    # install dependencies for Docker
+    apt-get update
+    apt-get -y install \
+     apt-transport-https \
+     ca-certificates \
+     curl \
+     gnupg2 \
+     software-properties-common
+
+    # get their GPG key
+    curl -fsSL https://download.docker.com/linux/debian/gpg | apt-key add -
+
+    # show fingerprint to user
+    apt-key fingerprint 0EBFCD88
+
+    # add APT repo
+    add-apt-repository \
+      "deb [arch=amd64] https://download.docker.com/linux/debian \
+      $(lsb_release -cs) \
+      stable"
+
+    # install docker
+    apt-get update
+    apt-get -y install docker-ce docker-ce-cli containerd.io
+
+    # make sure it's enabled & running
+    systemctl start docker
+    systemctl enable docker
+
+  elif [ "$OS" == "ubuntu" ]; then
+    # install dependencies for Docker
+    apt-get update
+    apt-get -y install \
+      apt-transport-https \
+      ca-certificates \
+      curl \
+      software-properties-common
+
+    # get their GPG key
+    curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
+
+    # show fingerprint to user
+    apt-key fingerprint 0EBFCD88
+
+    # add APT repo
+    sudo add-apt-repository \
+     "deb [arch=amd64] https://download.docker.com/linux/ubuntu \
+     $(lsb_release -cs) \
+     stable"
+
+    # install docker
+    apt-get update
+    apt-get -y install docker-ce docker-ce-cli containerd.io
+
+    # make sure it's enabled & running
+    systemctl start docker
+    systemctl enable docker
+
+  elif [ "$OS" == "centos" ]; then
+    if [ "$OS_VER_MAJOR" == "7" ]; then
+      # install dependencies for Docker
+      yum install -y yum-utils device-mapper-persistent-data lvm2
+
+      # add repo to yum
+      yum-config-manager \
+        --add-repo \
+        https://download.docker.com/linux/centos/docker-ce.repo
+
+      # install Docker
+      yum install -y docker-ce docker-ce-cli containerd.io
+    elif [ "$OS_VER_MAJOR" == "8" ]; then
+      # install dependencies for Docker
+      dnf install -y dnf-utils device-mapper-persistent-data lvm2
+
+      # add repo to dnf
+      dnf config-manager --add-repo=https://download.docker.com/linux/centos/docker-ce.repo
+
+      # install Docker
+      dnf install -y docker-ce docker-ce-cli containerd.io --nobest
+    fi
+
+    # make sure it's enabled & running
+    systemctl start docker
+    systemctl enable docker
+  fi
+
+  echo "* Docker has now been installed."
+}
+
+function ptdl_dl {
+  echo "* Installing Pterodactyl Wings .. "
+
+  mkdir -p /etc/pterodactyl
+  curl -L -o /usr/local/bin/wings "$DL_URL"
+
+  chmod u+x /usr/local/bin/wings
+
+  echo "* Done."
+}
+
+function systemd_file {
+  echo "* Installing systemd service.."
+  curl -o /etc/systemd/system/wings.service $CONFIGS_URL/wings.service
+  systemctl daemon-reload
+  systemctl enable wings
+  echo "* Installed systemd service!"
+}
+
 function create_database {
   if [ "$OS" == "centos" ]; then
     # secure MariaDB
@@ -592,6 +703,8 @@ function firewall_ufw {
   ufw allow ssh > /dev/null
   ufw allow http > /dev/null
   ufw allow https > /dev/nulla
+  ufw allow 8080 comment "pterodactyl wings" > /dev/null
+  ufw allow 2022 comment "pterodactyl sftp" > /dev/null
 
   ufw enable
   ufw status numbered | sed '/v6/d'
@@ -610,6 +723,8 @@ function firewall_firewalld {
     systemctl --now enable firewalld > /dev/null # Start and enable
     firewall-cmd --add-service=http --permanent -q # Port 80
     firewall-cmd --add-service=https --permanent -q # Port 443
+    firewall-cmd --add-port 8080/tcp --permanent -q # Port 8080
+    firewall-cmd --add-port 2022/tcp --permanent -q # Port 2022
     firewall-cmd --add-service=ssh --permanent -q  # Port 22
     firewall-cmd --reload -q # Enable firewall
 
@@ -622,6 +737,8 @@ function firewall_firewalld {
     systemctl --now enable firewalld > /dev/null # Start and enable
     firewall-cmd --add-service=http --permanent -q # Port 80
     firewall-cmd --add-service=https --permanent -q # Port 443
+    firewall-cmd --add-port 8080/tcp --permanent -q # Port 8080
+    firewall-cmd --add-port 2022/tcp --permanent -q # Port 2022
     firewall-cmd --add-service=ssh --permanent -q  # Port 22
     firewall-cmd --reload -q # Enable firewall
 
@@ -763,6 +880,9 @@ function perform_install {
     configure
     insert_cronjob
     install_pteroq
+    install_docker
+    ptdl_dl
+    systemd_file
 
     if [ "$OS_VER_MAJOR" == "18" ] || [ "$OS_VER_MAJOR" == "20" ]; then
       if [ "$CONFIGURE_LETSENCRYPT" == true ]; then
@@ -782,6 +902,9 @@ function perform_install {
     configure
     insert_cronjob
     install_pteroq
+    install_docker
+    ptdl_dl
+    systemd_file
 
     if [ "$OS_VER_MAJOR" == "9" ] || [ "$OS_VER_MAJOR" == "10" ]; then
       if [ "$CONFIGURE_LETSENCRYPT" == true ]; then
@@ -801,6 +924,9 @@ function perform_install {
     configure
     insert_cronjob
     install_pteroq
+    install_docker
+    ptdl_dl
+    systemd_file
     if [ "$OS_VER_MAJOR" == "7" ] || [ "$OS_VER_MAJOR" == "8" ]; then
       if [ "$CONFIGURE_LETSENCRYPT" == true ]; then
         letsencrypt
@@ -856,15 +982,6 @@ function main {
 
   # checks if the system is compatible with this installation script
   check_os_comp
-
-  # set database credentials
-  print_brake 72
-  echo "* Database configuration."
-  echo ""
-  echo "* This will be the credentials used for commuication between the MySQL"
-  echo "* database and the panel. You do not need to create the database"
-  echo "* before running this script, the script will do that for you."
-  echo ""
 
   # set timezone
   timezone="America/Chicago"
@@ -949,10 +1066,10 @@ function main {
 function summary {
   print_brake 62
   echo "* Pterodactyl panel $PTERODACTYL_VERSION with $WEBSERVER on $OS"
+  echo "* Hostname/FQDN: $FQDN"
   echo "* Email: $email"
   echo "* Username: $user_username"
   echo "* User password: (censored)"
-  echo "* Hostname/FQDN: $FQDN"
   echo "* Configure Let's Encrypt? $CONFIGURE_LETSENCRYPT"
   echo "* Assume SSL? $ASSUME_SSL"
   print_brake 62
@@ -967,12 +1084,6 @@ function goodbye {
   [ "$ASSUME_SSL" == true ] && [ "$CONFIGURE_LETSENCRYPT" == false ] && echo "* You have opted in to use SSL, but not via Let's Encrypt automatically. Your panel will not work until SSL has been configured."
   [ "$ASSUME_SSL" == false ] && [ "$CONFIGURE_LETSENCRYPT" == false ] && echo "* Your panel should be accessible from $(hyperlink "$app_url")"
 
-  echo "*"
-  echo "* Unofficial add-ons and tips"
-  echo "* - Third-party themes, $(hyperlink 'https://github.com/TheFonix/Pterodactyl-Themes')"
-  echo "*"
-  echo "* Installation is using $WEBSERVER on $OS"
-  echo "* Thank you for using this script."
   print_brake 62
 }
 
