@@ -51,27 +51,54 @@ output "DISCLAIMER: This script is a work in progress so it may have issues and 
 
 output
 
-while [ "$panel" == false ] && [ "$wings" == false ]; do
-  output "What would you like to do?"
-  output "[1] Install the panel"
-  output "[2] Install the daemon (Wings)"
-  output "[3] Install both on the same machine"
+while [ "$basic" == false ] && [ "$standard" == false ] && [ "$advanced" == false ]; do
+    output "What would you like to do?"
+    output "[1] Continue with the dummy installer."
+    output "[2] Continue with the standard installer"
+    output "[3] Continue with the advanced installer"
 
-  echo -n "* Input 1-3: "
-  read -r action
+    echo -n "* Input 1-3: "
+    read -r action
 
-  case $action in
-      1 )
-          panel=true ;;
-      2 )
-          wings=true ;;
-      3 )
-          panel=true
-          wings=true ;;
-      * )
-          error "Invalid option" ;;
-  esac
-done
+    case $action in
+        1 )
+            basic=true ;;
+        2 )
+            standard=true ;;
+        3 )
+            advanced=true ;;
+        * )
+            error "Invalid option" ;;
+    esac
+  done
 
-[ "$panel" == true ] && bash <(curl -s https://raw.githubusercontent.com/ForestRacks/PteroInstaller/main/install-panel.sh)
-[ "$wings" == true ] && bash <(curl -s https://raw.githubusercontent.com/ForestRacks/PteroInstaller/main/install-wings.sh)
+if [ "$basic" == false && "$standard" == false ]; then
+  while [ "$panel" == false ] && [ "$wings" == false ]; do
+    output "What would you like to do?"
+    output "[1] Install the panel"
+    output "[2] Install the daemon (Wings)"
+    output "[3] Install both on the same machine"
+
+    echo -n "* Input 1-3: "
+    read -r action
+
+    case $action in
+        1 )
+            panel=true ;;
+        2 )
+            wings=true ;;
+        3 )
+            panel=true
+            wings=true ;;
+        * )
+            error "Invalid option" ;;
+    esac
+  done
+
+  [ "$panel" == true ] && bash <(curl -s https://raw.githubusercontent.com/ForestRacks/PteroInstaller/main/install-panel.sh)
+  [ "$wings" == true ] && bash <(curl -s https://raw.githubusercontent.com/ForestRacks/PteroInstaller/main/install-wings.sh)
+else if [ "$standard" == true ]; then
+  bash <(curl -s https://raw.githubusercontent.com/ForestRacks/PteroInstaller/main/install-standard.sh)
+else
+  bash <(curl -s https://raw.githubusercontent.com/ForestRacks/PteroInstaller/main/install-basic.sh)
+fi
