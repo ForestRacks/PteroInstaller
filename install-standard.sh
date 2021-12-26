@@ -34,19 +34,15 @@ WEBSERVER="nginx"
 FQDN=""
 
 # default MySQL credentials
-MYSQL_DB="pterodactyl"
+MYSQL_DB="panel"
 MYSQL_USER="pterodactyl"
-MYSQL_PASSWORD=""
 
-# environment
+# environment logins
 email=""
-
-# Initial admin account
-user_email=""
-user_username=""
-user_firstname=""
-user_lastname=""
-user_password=""
+user_username="admin"
+user_firstname="Cool"
+user_lastname="Admin"
+PASSWORD=""
 
 # assume SSL, will fetch different config if true
 ASSUME_SSL=false
@@ -272,23 +268,18 @@ function configure {
     --port="3306" \
     --database="$MYSQL_DB" \
     --username="$MYSQL_USER" \
-    --password="$MYSQL_PASSWORD"
-
-  # Email credentials manually set by user
-if [[ "$mailneeded" =~ [Yy] ]]; then
-    php artisan p:environment:mail
-  fi
+    --password="$PASSWORD"
 
   # configures database
   php artisan migrate --seed --force
 
   # Create user account
   php artisan p:user:make \
-    --email="$user_email" \
+    --email="$email" \
     --username="$user_username" \
     --name-first="$user_firstname" \
     --name-last="$user_lastname" \
-    --password="$user_password" \
+    --password="$PASSWORD" \
     --admin=1
 
   # set folder permissions now
@@ -344,7 +335,7 @@ function create_database {
     echo "* MySQL will now ask you to enter the password before each command."
 
     echo "* Create MySQL user."
-    mysql -u root -p -e "CREATE USER '${MYSQL_USER}'@'127.0.0.1' IDENTIFIED BY '${MYSQL_PASSWORD}';"
+    mysql -u root -p -e "CREATE USER '${MYSQL_USER}'@'127.0.0.1' IDENTIFIED BY '${PASSWORD}';"
 
     echo "* Create database."
     mysql -u root -p -e "CREATE DATABASE ${MYSQL_DB};"
@@ -358,7 +349,7 @@ function create_database {
     echo "* Performing MySQL queries.."
 
     echo "* Creating MySQL user.."
-    mysql -u root -e "CREATE USER '${MYSQL_USER}'@'127.0.0.1' IDENTIFIED BY '${MYSQL_PASSWORD}';"
+    mysql -u root -e "CREATE USER '${MYSQL_USER}'@'127.0.0.1' IDENTIFIED BY '${PASSWORD}';"
 
     echo "* Creating database.."
     mysql -u root -e "CREATE DATABASE ${MYSQL_DB};"
@@ -875,39 +866,12 @@ function main {
   echo "* before running this script, the script will do that for you."
   echo ""
 
-  echo -n "* Database name (panel): "
-  read -r MYSQL_DB_INPUT
-
-  [ -z "$MYSQL_DB_INPUT" ] && MYSQL_DB="panel" || MYSQL_DB=$MYSQL_DB_INPUT
-
-  echo -n "* Username (pterodactyl): "
-  read -r MYSQL_USER_INPUT
-
-  [ -z "$MYSQL_USER_INPUT" ] && MYSQL_USER="pterodactyl" || MYSQL_USER=$MYSQL_USER_INPUT
-
-  # MySQL password input
-  password_input MYSQL_PASSWORD "Password (use something strong): " "MySQL password cannot be empty"
-
-  valid_timezones="$(timedatectl list-timezones)"
-  echo "* List of valid timezones here $(hyperlink "https://www.php.net/manual/en/timezones.php")"
-
-  while [ -z "$timezone" ] || [[ ${valid_timezones} != *"$timezone_input"* ]]; do
-    echo -n "* Select timezone [America/Chicago]: "
-    read -r timezone_input
-    [ -z "$timezone_input" ] && timezone="America/Chicago" || timezone=$timezone_input # because köttbullar!
-  done
-
-  required_input email "Provide the email address that will be used to configure Let's Encrypt and Pterodactyl: " "Email cannot be empty"
-
-  echo -n "* Would you like to set up email so Pterodactyl can send emails to users (NOT RECOMMENDED)? (y/N): "
-  read -r mailneeded
+  # set timezone
+  timezone="America/Chicago"
 
   # Initial admin account
-  required_input user_email "Email address for the initial admin account: " "Email cannot be empty"
-  required_input user_username "Username for the initial admin account: " "Username cannot be empty"
-  required_input user_firstname "First name for the initial admin account: " "Name cannot be empty"
-  required_input user_lastname "Last name for the initial admin account: " "Name cannot be empty"
-  password_input user_password "Password for the initial admin account: " "Password cannot be empty"
+  required_input email "Email address for the initial admin account: " "Email cannot be empty"
+  password_input PASSWORD "Password for the initial admin account: " "Password cannot be empty"
 
   print_brake 72
 
@@ -923,13 +887,8 @@ function main {
   # UFW is available for Ubuntu/Debian
   # Let's Encrypt is available for Ubuntu/Debian
   if [ "$OS" == "debian" ] || [ "$OS" == "ubuntu" ]; then
-    echo -e -n "* Do you want to automatically configure UFW (firewall)? (y/N): "
-    read -r CONFIRM_UFW
-
-    if [[ "$CONFIRM_UFW" =~ [Yy] ]]; then
-      CONFIGURE_UFW=true
-      CONFIGURE_FIREWALL=true
-    fi
+    CONFIGURE_UFW=true
+    CONFIGURE_FIREWALL=true
 
     # Available for Debian 9/10
     if [ "$OS" == "debian" ]; then
@@ -950,13 +909,8 @@ function main {
   # Firewall-cmd is available for CentOS
   # Let's Encrypt is available for CentOS
   if [ "$OS" == "centos" ]; then
-    echo -e -n "* Do you want to automatically configure firewall-cmd (firewall)? (y/N): "
-    read -r CONFIRM_FIREWALL_CMD
-
-    if [[ "$CONFIRM_FIREWALL_CMD" =~ [Yy] ]]; then
-      CONFIGURE_FIREWALL_CMD=true
-      CONFIGURE_FIREWALL=true
-    fi
+    CONFIGURE_FIREWALL_CMD=true
+    CONFIGURE_FIREWALL=true
 
     ask_letsencrypt
   fi
@@ -993,18 +947,10 @@ function main {
 function summary {
   print_brake 62
   echo "* Pterodactyl panel $PTERODACTYL_VERSION with $WEBSERVER on $OS"
-  echo "* Database name: $MYSQL_DB"
-  echo "* Database user: $MYSQL_USER"
-  echo "* Database password: (censored)"
-  echo "* Timezone: $timezone"
   echo "* Email: $email"
-  echo "* User email: $user_email"
   echo "* Username: $user_username"
-  echo "* First name: $user_firstname"
-  echo "* Last name: $user_lastname"
   echo "* User password: (censored)"
   echo "* Hostname/FQDN: $FQDN"
-  echo "* Configure Firewall? $CONFIGURE_FIREWALL"
   echo "* Configure Let's Encrypt? $CONFIGURE_LETSENCRYPT"
   echo "* Assume SSL? $ASSUME_SSL"
   print_brake 62
@@ -1025,11 +971,6 @@ function goodbye {
   echo "*"
   echo "* Installation is using $WEBSERVER on $OS"
   echo "* Thank you for using this script."
-  echo -e "* ${COLOR_RED}Note${COLOR_NC}: If you haven't configured the firewall: 80/443 (HTTP/HTTPS) is required to be open!"
-  echo "*"
-  echo "* To continue, you need to configure Wings to run with your panel"
-  echo -e "* ${COLOR_RED}Note${COLOR_NC}: Refer to the post installation steps now $(hyperlink 'https://github.com/ForestRacks/PteroInstaller#post-installation')"
-  
   print_brake 62
 }
 

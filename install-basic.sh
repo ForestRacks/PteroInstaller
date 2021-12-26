@@ -61,13 +61,13 @@ CONFIGS_URL="https://raw.githubusercontent.com/ForestRacks/PteroInstaller/master
 SOURCES_PATH="/etc/apt/sources.list"
 
 # ufw firewall
-CONFIGURE_UFW=true
+CONFIGURE_UFW=false
 
 # firewall_cmd
-CONFIGURE_FIREWALL_CMD=true
+CONFIGURE_FIREWALL_CMD=false
 
 # firewall status
-CONFIGURE_FIREWALL=true
+CONFIGURE_FIREWALL=false
 
 # visual functions
 function print_error {
@@ -97,20 +97,6 @@ function print_brake {
 
 hyperlink() {
   echo -e "\e]8;;${1}\a${1}\e]8;;\a"
-}
-
-required_input() {
-  local  __resultvar=$1
-  local  result=''
-
-  while [ -z "$result" ]; do
-      echo -n "* ${2}"
-      read -r result
-
-      [ -z "$result" ] && print_error "${3}"
-  done
-
-  eval "$__resultvar="'$result'""
 }
 
 # other functions
@@ -154,6 +140,7 @@ function detect_distro {
 function check_os_comp {
   if [ "$OS" == "ubuntu" ]; then
     PHP_SOCKET="/run/php/php8.0-fpm.sock"
+    CONFIGURE_UFW=true
     if [ "$OS_VER_MAJOR" == "18" ]; then
       SUPPORTED=true
     elif [ "$OS_VER_MAJOR" == "20" ]; then
@@ -163,6 +150,7 @@ function check_os_comp {
     fi
   elif [ "$OS" == "debian" ]; then
     PHP_SOCKET="/run/php/php8.0-fpm.sock"
+    CONFIGURE_UFW=true
     if [ "$OS_VER_MAJOR" == "9" ]; then
       SUPPORTED=true
     elif [ "$OS_VER_MAJOR" == "10" ]; then
@@ -172,6 +160,7 @@ function check_os_comp {
     fi
   elif [ "$OS" == "centos" ]; then
     PHP_SOCKET="/var/run/php-fpm/pterodactyl.sock"
+    CONFIGURE_FIREWALL=true
     if [ "$OS_VER_MAJOR" == "7" ]; then
       SUPPORTED=true
     elif [ "$OS_VER_MAJOR" == "8" ]; then
