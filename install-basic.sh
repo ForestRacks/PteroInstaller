@@ -289,6 +289,98 @@ function install_pteroq {
   echo "* Installed pteroq!"
 }
 
+function install_docker {
+  echo "* Installing docker .."
+  if [ "$OS" == "debian" ]; then
+    # install dependencies for Docker
+    apt-get update
+    apt-get -y install \
+     apt-transport-https \
+     ca-certificates \
+     curl \
+     gnupg2 \
+     software-properties-common
+
+    # get their GPG key
+    curl -fsSL https://download.docker.com/linux/debian/gpg | apt-key add -
+
+    # show fingerprint to user
+    apt-key fingerprint 0EBFCD88
+
+    # add APT repo
+    add-apt-repository \
+      "deb [arch=amd64] https://download.docker.com/linux/debian \
+      $(lsb_release -cs) \
+      stable"
+
+    # install docker
+    apt-get update
+    apt-get -y install docker-ce docker-ce-cli containerd.io
+
+    # make sure it's enabled & running
+    systemctl start docker
+    systemctl enable docker
+
+  elif [ "$OS" == "ubuntu" ]; then
+    # install dependencies for Docker
+    apt-get update
+    apt-get -y install \
+      apt-transport-https \
+      ca-certificates \
+      curl \
+      software-properties-common
+
+    # get their GPG key
+    curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
+
+    # show fingerprint to user
+    apt-key fingerprint 0EBFCD88
+
+    # add APT repo
+    sudo add-apt-repository \
+     "deb [arch=amd64] https://download.docker.com/linux/ubuntu \
+     $(lsb_release -cs) \
+     stable"
+
+    # install docker
+    apt-get update
+    apt-get -y install docker-ce docker-ce-cli containerd.io
+
+    # make sure it's enabled & running
+    systemctl start docker
+    systemctl enable docker
+
+  elif [ "$OS" == "centos" ]; then
+    if [ "$OS_VER_MAJOR" == "7" ]; then
+      # install dependencies for Docker
+      yum install -y yum-utils device-mapper-persistent-data lvm2
+
+      # add repo to yum
+      yum-config-manager \
+        --add-repo \
+        https://download.docker.com/linux/centos/docker-ce.repo
+
+      # install Docker
+      yum install -y docker-ce docker-ce-cli containerd.io
+    elif [ "$OS_VER_MAJOR" == "8" ]; then
+      # install dependencies for Docker
+      dnf install -y dnf-utils device-mapper-persistent-data lvm2
+
+      # add repo to dnf
+      dnf config-manager --add-repo=https://download.docker.com/linux/centos/docker-ce.repo
+
+      # install Docker
+      dnf install -y docker-ce docker-ce-cli containerd.io --nobest
+    fi
+
+    # make sure it's enabled & running
+    systemctl start docker
+    systemctl enable docker
+  fi
+
+  echo "* Docker has now been installed."
+}
+
 function systemd_file {
   echo "* Installing systemd service.."
   curl -o /etc/systemd/system/wings.service $CONFIGS_URL/wings.service
@@ -722,6 +814,7 @@ function perform_install {
     configure
     insert_cronjob
     install_pteroq
+    install_docker
     ptdl_dl
     systemd_file
 
@@ -743,6 +836,7 @@ function perform_install {
     configure
     insert_cronjob
     install_pteroq
+    install_docker
     ptdl_dl
     systemd_file
 
@@ -764,6 +858,7 @@ function perform_install {
     configure
     insert_cronjob
     install_pteroq
+    install_docker
     ptdl_dl
     systemd_file
     if [ "$OS_VER_MAJOR" == "7" ] || [ "$OS_VER_MAJOR" == "8" ]; then
