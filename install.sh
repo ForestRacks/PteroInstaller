@@ -75,7 +75,7 @@ while [ "$basic" == false ] && [ "$standard" == false ] && [ "$advanced" == fals
   esac
 done
 
-if [ "$basic" == false && "$standard" == false ]; then
+if [ "$basic" == false ] && [ "$standard" == false ]; then
   while [ "$panel" == false ] && [ "$wings" == false ]; do
     output "What would you like to do?"
     output "[1] Install the panel"
