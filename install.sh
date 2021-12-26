@@ -55,7 +55,7 @@ output "DISCLAIMER: This script is a work in progress so it may have issues and 
 output
 
 while [ "$basic" == false ] && [ "$standard" == false ] && [ "$advanced" == false ]; do
-  output "What would you like to do?"
+  output "What is your skill level?"
   output "[1] Continue with the dummy installer."
   output "[2] Continue with the standard installer"
   output "[3] Continue with the advanced installer"
@@ -78,8 +78,8 @@ done
 if [ "$basic" == false ] && [ "$standard" == false ]; then
   while [ "$panel" == false ] && [ "$wings" == false ]; do
     output "What would you like to do?"
-    output "[1] Install the panel"
-    output "[2] Install the daemon (Wings)"
+    output "[1] Install the panel (Web Dashboard)"
+    output "[2] Install the wings (Machine Agent)"
     output "[3] Install both on the same machine"
 
     echo -n "* Input 1-3: "
