@@ -29,10 +29,8 @@ echo "* Retrieving release information.."
 PTERODACTYL_VERSION="$(get_latest_release "pterodactyl/panel")"
 echo "* Latest version is $PTERODACTYL_VERSION"
 
-for PASSWORD in $(seq 1 5);                                   
-do 
-  openssl rand -base64 48 | cut -c1-10
-done
+# Generate password
+PASSWORD=$(openssl rand -base64 10)
 
 # variables
 WEBSERVER="nginx"
@@ -798,7 +796,7 @@ function main {
 function summary {
   print_brake 62
   echo "* Pterodactyl panel $PTERODACTYL_VERSION with $WEBSERVER on $OS"
-  echo "* Panel URL: $FQDN"
+  echo "* Panel URL: http://$FQDN"
   echo "* Username: $user_username"
   echo "* Password: $PASSWORD"
   print_brake 62
