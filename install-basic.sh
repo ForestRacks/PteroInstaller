@@ -268,6 +268,17 @@ function insert_cronjob {
   echo "* Cronjob installed!"
 }
 
+function ptdl_dl {
+  echo "* Installing Pterodactyl Wings .. "
+
+  mkdir -p /etc/pterodactyl
+  curl -L -o /usr/local/bin/wings "$DL_URL"
+
+  chmod u+x /usr/local/bin/wings
+
+  echo "* Done."
+}
+
 function install_pteroq {
   echo "* Installing pteroq service.."
 
@@ -276,6 +287,14 @@ function install_pteroq {
   systemctl start pteroq
 
   echo "* Installed pteroq!"
+}
+
+function systemd_file {
+  echo "* Installing systemd service.."
+  curl -o /etc/systemd/system/wings.service $CONFIGS_URL/wings.service
+  systemctl daemon-reload
+  systemctl enable wings
+  echo "* Installed systemd service!"
 }
 
 function create_database {
@@ -551,7 +570,9 @@ function firewall_ufw {
   # pointing to /dev/null silences the command output
   ufw allow ssh > /dev/null
   ufw allow http > /dev/null
-  ufw allow https > /dev/nulla
+  ufw allow https > /dev/null
+  ufw allow 8080 comment "pterodactyl wings" > /dev/null
+  ufw allow 2022 comment "pterodactyl sftp" > /dev/null
 
   ufw enable
   ufw status numbered | sed '/v6/d'
@@ -568,6 +589,8 @@ function firewall_firewalld {
     yum -y -q install firewalld > /dev/null
 
     systemctl --now enable firewalld > /dev/null # Start and enable
+    firewall-cmd --add-port 8080/tcp --permanent -q # Port 8080
+    firewall-cmd --add-port 2022/tcp --permanent -q # Port 2022
     firewall-cmd --add-service=http --permanent -q # Port 80
     firewall-cmd --add-service=https --permanent -q # Port 443
     firewall-cmd --add-service=ssh --permanent -q  # Port 22
@@ -580,6 +603,8 @@ function firewall_firewalld {
     dnf -y -q install firewalld > /dev/null
 
     systemctl --now enable firewalld > /dev/null # Start and enable
+    firewall-cmd --add-port 8080/tcp --permanent -q # Port 8080
+    firewall-cmd --add-port 2022/tcp --permanent -q # Port 2022
     firewall-cmd --add-service=http --permanent -q # Port 80
     firewall-cmd --add-service=https --permanent -q # Port 443
     firewall-cmd --add-service=ssh --permanent -q  # Port 22
@@ -697,6 +722,8 @@ function perform_install {
     configure
     insert_cronjob
     install_pteroq
+    ptdl_dl
+    systemd_file
 
     if [ "$OS_VER_MAJOR" == "18" ] || [ "$OS_VER_MAJOR" == "20" ]; then
       if [ "$CONFIGURE_LETSENCRYPT" == true ]; then
@@ -716,6 +743,8 @@ function perform_install {
     configure
     insert_cronjob
     install_pteroq
+    ptdl_dl
+    systemd_file
 
     if [ "$OS_VER_MAJOR" == "9" ] || [ "$OS_VER_MAJOR" == "10" ]; then
       if [ "$CONFIGURE_LETSENCRYPT" == true ]; then
@@ -735,6 +764,8 @@ function perform_install {
     configure
     insert_cronjob
     install_pteroq
+    ptdl_dl
+    systemd_file
     if [ "$OS_VER_MAJOR" == "7" ] || [ "$OS_VER_MAJOR" == "8" ]; then
       if [ "$CONFIGURE_LETSENCRYPT" == true ]; then
         letsencrypt
@@ -791,6 +822,8 @@ function main {
     print_error "Installation aborted."
     exit 1
   fi
+
+
 }
 
 function summary {
@@ -805,10 +838,11 @@ function summary {
 function goodbye {
   print_brake 62
   echo "* Panel installation completed"
-  echo "*"
+  echo "*  ${COLOR_RED}Note${COLOR_NC}: Now follow the post installation process https://github.com/ForestRacks/PteroInstaller#post-installation"
 
 }
 
 # run script
 main
+summary
 goodbye
