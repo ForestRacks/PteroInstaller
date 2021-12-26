@@ -942,6 +942,8 @@ function main {
     print_error "Installation aborted."
     exit 1
   fi
+  mkdir /etc/pterodactyl
+  cp /var/www/pterodactyl/.env /etc/pterodactyl
 }
 
 function summary {
