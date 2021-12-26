@@ -896,8 +896,6 @@ function main {
   # detect distro
   detect_distro
 
-  print_brake 70
-
   # checks if the system is compatible with this installation script
   check_os_comp
 
