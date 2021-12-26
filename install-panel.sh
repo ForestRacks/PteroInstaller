@@ -913,7 +913,8 @@ function main {
 
   # set FQDN
   while [ -z "$FQDN" ]; do
-      echo -n "* Set the FQDN of this panel (panel.example.com): "
+      echo -n "* Point an A-Record for your panel subdomain to your machine IP on DNS."
+      echo -n "* Now set the FQDN (panel URL) eg. panel.forestracks.com: "
       read -r FQDN
 
       [ -z "$FQDN" ] && print_error "FQDN cannot be empty"
