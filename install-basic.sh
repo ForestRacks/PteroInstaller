@@ -53,6 +53,7 @@ user_password="$PASSWORD"
 
 # download URLs
 PANEL_DL_URL="https://github.com/pterodactyl/panel/releases/latest/download/panel.tar.gz"
+DL_URL="https://github.com/pterodactyl/wings/releases/latest/download/wings_linux_amd64"
 CONFIGS_URL="https://raw.githubusercontent.com/ForestRacks/PteroInstaller/master/configs"
 
 # apt sources path
