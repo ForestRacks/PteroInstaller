@@ -231,7 +231,7 @@ function install_composer {
   echo "* Composer installed!"
 }
 
-function ptdl_dl {
+function panel_ptdl_dl {
   echo "* Downloading pterodactyl panel files .. "
   mkdir -p /var/www/pterodactyl
   cd /var/www/pterodactyl || exit
@@ -876,7 +876,7 @@ function perform_install {
       exit 1
     fi
     install_composer
-    ptdl_dl
+    panel_ptdl_dl
     create_database
     configure
     insert_cronjob
@@ -898,7 +898,7 @@ function perform_install {
       debian_dep
     fi
     install_composer
-    ptdl_dl
+    panel_ptdl_dl
     create_database
     configure
     insert_cronjob
@@ -920,7 +920,7 @@ function perform_install {
     fi
     centos_php
     install_composer
-    ptdl_dl
+    panel_ptdl_dl
     create_database
     configure
     insert_cronjob
