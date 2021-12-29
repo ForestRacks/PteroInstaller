@@ -1013,7 +1013,6 @@ function summary {
 }
 
 function goodbye {
-  print_brake 62
   echo "* Panel installation completed"
   echo "*"
 
