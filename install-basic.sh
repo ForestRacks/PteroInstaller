@@ -3,7 +3,7 @@
 set -e
 
 # Pterodactyl Installer 
-# Copyright Forestracks 2021
+# Copyright Forestracks 2022
 
 # exit with error status code if user is not root
 if [[ $EUID -ne 0 ]]; then
@@ -23,7 +23,7 @@ get_latest_release() {
   curl --silent "https://api.github.com/repos/$1/releases/latest" | # Get latest release from GitHub api
   grep '"tag_name":' |                                              # Get tag line
   sed -E 's/.*"([^"]+)".*/\1/'                                      # Pluck JSON value
-}
+}Chan
 
 echo "* Retrieving release information.."
 PTERODACTYL_VERSION="$(get_latest_release "pterodactyl/panel")"
