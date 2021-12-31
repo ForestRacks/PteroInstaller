@@ -3,7 +3,7 @@
 set -e
 
 # Pterodactyl Wings Installer 
-# Copyright Forestracks 2021
+# Copyright Forestracks 2022
 
 # exit with error status code if user is not root
 if [[ $EUID -ne 0 ]]; then
