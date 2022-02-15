@@ -1021,8 +1021,8 @@ function goodbye {
   [ "$ASSUME_SSL" == false ] && [ "$CONFIGURE_LETSENCRYPT" == false ] && echo "* Your panel should be accessible from $(hyperlink "$app_url")"
 
   echo "*"
-  echo "* Unofficial add-ons and tips"
-  echo "* - Third-party themes, $(hyperlink 'https://github.com/TheFonix/Pterodactyl-Themes')"
+  #echo "* Unofficial add-ons and tips"
+  #echo "* - Third-party themes, $(hyperlink 'https://github.com/TheFonix/Pterodactyl-Themes')"
   echo "*"
   echo "* Installation is using $WEBSERVER on $OS"
   echo "* Thank you for using this script."
