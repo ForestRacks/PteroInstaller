@@ -59,7 +59,7 @@ output
 
 while [ "$basic" == false ] && [ "$standard" == false ] && [ "$advanced" == false ]; do
   output "What is your skill level?"
-  output "[1] Continue with the dummy installer."
+  output "[1] Continue with the basic installer."
   output "[2] Continue with the standard installer"
   output "[3] Continue with the advanced installer"
 
