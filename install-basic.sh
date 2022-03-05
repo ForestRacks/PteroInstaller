@@ -294,7 +294,7 @@ function install_docker {
   echo "* Installing docker .."
   if [ "$OS" == "debian" ]; then
     # install dependencies for Docker
-    apt-get update
+    apt-get update -y 
     apt-get -y install \
      apt-transport-https \
      ca-certificates \
@@ -456,7 +456,7 @@ function ubuntu20_dep {
   curl -sS https://downloads.mariadb.com/MariaDB/mariadb_repo_setup | sudo bash
 
   # Update repositories list
-  apt update
+  apt update -y
 
   # Add universe repository if you are on Ubuntu 18.04
   apt-add-repository universe
@@ -486,7 +486,7 @@ function ubuntu18_dep {
   curl -sS https://downloads.mariadb.com/MariaDB/mariadb_repo_setup | sudo bash
 
   # Update repositories list
-  apt update
+  apt update -y
 
   # Install Dependencies
   apt -y install php8.0 php8.0-{cli,gd,mysql,pdo,mbstring,tokenizer,bcmath,xml,fpm,curl,zip} mariadb-server nginx tar unzip git redis-server redis
@@ -507,7 +507,7 @@ function debian_stretch_dep {
   apt -y install dirmngr
 
   # install PHP 8.0 using sury's repo instead of PPA
-  apt install ca-certificates apt-transport-https lsb-release -y
+  apt install -y ca-certificates apt-transport-https lsb-release
   wget -O /etc/apt/trusted.gpg.d/php.gpg https://packages.sury.org/php/apt.gpg
   echo "deb https://packages.sury.org/php/ $(lsb_release -sc) main" | tee /etc/apt/sources.list.d/php.list
  
@@ -515,7 +515,7 @@ function debian_stretch_dep {
   curl -sS https://downloads.mariadb.com/MariaDB/mariadb_repo_setup | bash
 
   # Update repositories list
-  apt update
+  apt update -y
 
   # Install Dependencies
   apt -y install php8.0 php8.0-{cli,gd,mysql,pdo,mbstring,tokenizer,bcmath,xml,fpm,curl,zip} mariadb-server nginx curl tar unzip git redis-server
@@ -533,7 +533,7 @@ function debian_dep {
   echo "* Installing dependencies for Debian 10.."
 
   # MariaDB need dirmngr
-  apt -y install dirmngr
+  apt install -y dirmngr
 
   # install PHP 8.0 using sury's repo instead of default 7.2 package (in buster repo)
   apt install ca-certificates apt-transport-https lsb-release -y
@@ -541,7 +541,7 @@ function debian_dep {
   echo "deb https://packages.sury.org/php/ $(lsb_release -sc) main" | tee /etc/apt/sources.list.d/php.list
 
   # Update repositories list
-  apt update
+  apt update -y
 
   # install dependencies
   apt -y install php8.0 php8.0-{cli,gd,mysql,pdo,mbstring,tokenizer,bcmath,xml,fpm,curl,zip} mariadb-server nginx curl tar unzip git redis-server
@@ -654,7 +654,7 @@ function centos_php {
 }
 
 function firewall_ufw {
-  apt update
+  apt update -y
   apt install ufw -y
 
   echo -e "\n* Enabling Uncomplicated Firewall (UFW)"
