@@ -17,11 +17,11 @@ if ! [ -x "$(command -v curl)" ]; then
   # RHEL / CentOS / etc
   if [ -n "$(command -v yum)" ]; then
     yum update -y >> /dev/null 2>&1
-  	yum -y install curl >> /dev/null 2>&1
+    yum -y install curl >> /dev/null 2>&1
   fi
   if [ -n "$(command -v apt-get)" ]; then
-	  apt-get update -y >> /dev/null 2>&1
-	  apt-get install -y snapd cron curl gzip >> /dev/null 2>&1
+    apt-get update -y >> /dev/null 2>&1
+    apt-get install -y snapd cron curl gzip >> /dev/null 2>&1
   fi
   # Check if curl was installed
   if ! [ -x "$(command -v curl)" ]; then
