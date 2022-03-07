@@ -222,7 +222,10 @@ letsencrypt() {
 
   # Install certbot
   if [ "$OS" == "debian" ] || [ "$OS" == "ubuntu" ]; then
-    apt-get install certbot -y
+    apt-get install -y snapd
+    snap install core; sudo snap refresh core
+    snap install --classic certbot
+    ln -s /snap/bin/certbot /usr/bin/certbot
   elif [ "$OS" == "centos" ]; then
     [ "$OS_VER_MAJOR" == "7" ] && yum install certbot
     [ "$OS_VER_MAJOR" == "8" ] && dnf install certbot
@@ -414,6 +417,7 @@ function firewall_ufw {
 
   # pointing to /dev/null silences the command output
   ufw allow ssh > /dev/null
+  ufw allow 80 comment "certbot requires to generate" > /dev/null
   ufw allow 8080 comment "pterodactyl wings" > /dev/null
   ufw allow 2022 comment "pterodactyl sftp" > /dev/null
 
