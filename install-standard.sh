@@ -241,7 +241,7 @@ function panel_ptdl_dl {
   chmod -R 755 storage/* bootstrap/cache/
 
   cp .env.example .env
-  composer install --no-dev --optimize-autoloader
+  composer install --no-dev --optimize-autoloader --silent
 
   php artisan key:generate --force
   echo "* Downloaded pterodactyl panel files & installed composer dependencies!"
