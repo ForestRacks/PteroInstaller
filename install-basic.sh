@@ -929,7 +929,6 @@ function summary {
 }
 
 function goodbye {
-  print_brake 62
   echo "* Panel installation completed"
   echo "*  ${COLOR_RED}Note${COLOR_NC}: Now follow the post installation process https://github.com/ForestRacks/PteroInstaller#post-installation"
 
