@@ -21,7 +21,7 @@ if ! [ -x "$(command -v curl)" ]; then
   fi
   if [ -n "$(command -v apt-get)" ]; then
     apt-get update -y >> /dev/null 2>&1
-    apt-get install -y snapd cron curl gzip >> /dev/null 2>&1
+    apt-get install -y --no-install-recommends snapd cron curl gzip >> /dev/null 2>&1
   fi
   # Check if curl was installed
   if ! [ -x "$(command -v curl)" ]; then
