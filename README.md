@@ -14,9 +14,9 @@ chmod +x install.sh
 1) Go to http://YourFQDN.TLD/admin/locations and make a location
 2) Go to http://YourFQDN.TLD/admin/nodes and create your first machine
 3) Go to http://YourFQDN.TLD/admin/nodes/view/1/allocation and add ports for your games
-4) Go to http://YourFQDN.TLD/admin/nodes/view/1/configuration and grab the block of text
-5) Then paste the configuration you copied in `/etc/pterodactyl/config.yml` on your machine
-6) Lastly, do `systemctl restart wings` and you should be all set
+4) Go to http://YourFQDN.TLD/admin/nodes/view/1/configuration and click auto-deploy on the right.
+5) Then run the command it gives you on your machine's command line.
+6) Lastly, do `systemctl restart wings` and then you are done!
 
 ## Troubleshooting:
 1) If you get a mysql connection error when you run the installer, you mostly ran the installer multiple times. The easiest way of fixing this is reinstalling your OS and running the install script again.
