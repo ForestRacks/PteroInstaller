@@ -3,7 +3,8 @@ Pterodactyl Panel installer for Forestracks customers. This installer works on b
 
 ## Installation:
 1) Reinstall your machine if you changed anything before you run the installer.
-2) Download and run installer:
+2) Point a DNS A-Record to your machine IP like YourFQDN.TLD to 127.0.0.1
+3) Download and run installer:
 ```
 wget https://raw.githubusercontent.com/ForestRacks/PteroInstaller/main/install.sh
 chmod +x install.sh
