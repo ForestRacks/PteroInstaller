@@ -582,7 +582,10 @@ letsencrypt() {
   # Install certbot
   case "$OS" in
   debian | ubuntu)
-    apt-get -y install certbot python3-certbot-nginx
+    apt-get install -y snapd
+    snap install core; sudo snap refresh core
+    snap install --classic certbot
+    ln -s /snap/bin/certbot /usr/bin/certbot
     ;;
   centos)
     [ "$OS_VER_MAJOR" == "7" ] && yum -y -q install epel-release
