@@ -5,8 +5,6 @@ set -e
 # Pterodactyl Installer 
 # Copyright Forestracks 2022
 
-######## General checks #########
-
 # exit with error status code if user is not root
 if [[ $EUID -ne 0 ]]; then
   echo "* This script must be executed with root privileges (sudo)." 1>&2
@@ -20,20 +18,27 @@ if ! [ -x "$(command -v curl)" ]; then
   exit 1
 fi
 
-########## Variables ############
+# define version using information from GitHub
+get_latest_release() {
+  curl --silent "https://api.github.com/repos/$1/releases/latest" | # Get latest release from GitHub api
+  grep '"tag_name":' |                                              # Get tag line
+  sed -E 's/.*"([^"]+)".*/\1/'                                      # Pluck JSON value
+}
 
-# versioning
-GITHUB_SOURCE="master"
-SCRIPT_RELEASE="canary"
+echo "* Retrieving release information.."
+PTERODACTYL_VERSION="$(get_latest_release "pterodactyl/panel")"
+echo "* Latest version is $PTERODACTYL_VERSION"
 
+# variables
+WEBSERVER="nginx"
 FQDN=""
 
-# Default MySQL credentials
+# default MySQL credentials
 MYSQL_DB="pterodactyl"
 MYSQL_USER="pterodactyl"
 MYSQL_PASSWORD=""
 
-# Environment
+# environment
 email=""
 
 # Initial admin account
@@ -43,14 +48,13 @@ user_firstname=""
 user_lastname=""
 user_password=""
 
-# Assume SSL, will fetch different config if true
-SSL_AVAILABLE=false
+# assume SSL, will fetch different config if true
 ASSUME_SSL=false
 CONFIGURE_LETSENCRYPT=false
 
 # download URLs
 PANEL_DL_URL="https://github.com/pterodactyl/panel/releases/latest/download/panel.tar.gz"
-GITHUB_BASE_URL="https://raw.githubusercontent.com/ForestRacks/PteroInstaller/master/configs"
+CONFIGS_URL="https://raw.githubusercontent.com/ForestRacks/PteroInstaller/master/configs"
 
 # apt sources path
 SOURCES_PATH="/etc/apt/sources.list"
@@ -64,41 +68,7 @@ CONFIGURE_FIREWALL_CMD=false
 # firewall status
 CONFIGURE_FIREWALL=false
 
-# input validation regex's
-email_regex="^(([A-Za-z0-9]+((\.|\-|\_|\+)?[A-Za-z0-9]?)*[A-Za-z0-9]+)|[A-Za-z0-9]+)@(([A-Za-z0-9]+)+((\.|\-|\_)?([A-Za-z0-9]+)+)*)+\.([A-Za-z]{2,})+$"
-
-####### Version checking ########
-
-# define version using information from GitHub
-get_latest_release() {
-  curl --silent "https://api.github.com/repos/$1/releases/latest" | # Get latest release from GitHub api
-    grep '"tag_name":' |                                            # Get tag line
-    sed -E 's/.*"([^"]+)".*/\1/'                                    # Pluck JSON value
-}
-
-# pterodactyl version
-echo "* Retrieving release information.."
-PTERODACTYL_VERSION="$(get_latest_release "pterodactyl/panel")"
-
-####### lib func #######
-
-array_contains_element() {
-  local e match="$1"
-  shift
-  for e; do [[ "$e" == "$match" ]] && return 0; done
-  return 1
-}
-
-valid_email() {
-  [[ $1 =~ ${email_regex} ]]
-}
-
-invalid_ip() {
-  ip route get "$1" > /dev/null 2>&1
-  echo $?
-}
-
-####### Visual functions ########
+# visual functions
 function print_error {
   COLOR_RED='\033[0;31m'
   COLOR_NC='\033[0m'
@@ -117,81 +87,26 @@ function print_warning {
 }
 
 function print_brake {
-  for ((n = 0; n < $1; n++)); do
-    echo -n "#"
-  done
-  echo ""
+  for ((n=0;n<$1;n++));
+    do
+      echo -n "#"
+    done
+    echo ""
 }
 
 hyperlink() {
   echo -e "\e]8;;${1}\a${1}\e]8;;\a"
 }
 
-##### User input functions ######
-
 required_input() {
-  local __resultvar=$1
-  local result=''
+  local  __resultvar=$1
+  local  result=''
 
   while [ -z "$result" ]; do
-    echo -n "* ${2}"
-    read -r result
+      echo -n "* ${2}"
+      read -r result
 
-    if [ -z "${3}" ]; then
-      [ -z "$result" ] && result="${4}"
-    else
       [ -z "$result" ] && print_error "${3}"
-    fi
-  done
-
-  eval "$__resultvar="'$result'""
-}
-
-email_input() {
-  local __resultvar=$1
-  local result=''
-
-  while ! valid_email "$result"; do
-    echo -n "* ${2}"
-    read -r result
-
-    valid_email "$result" || print_error "${3}"
-  done
-
-  eval "$__resultvar="'$result'""
-}
-
-password_input() {
-  local __resultvar=$1
-  local result=''
-  local default="$4"
-
-  while [ -z "$result" ]; do
-    echo -n "* ${2}"
-
-    # modified from https://stackoverflow.com/a/22940001
-    while IFS= read -r -s -n1 char; do
-      [[ -z $char ]] && {
-        printf '\n'
-        break
-      }                               # ENTER pressed; output \n and break.
-      if [[ $char == $'\x7f' ]]; then # backspace was pressed
-        # Only if variable is not empty
-        if [ -n "$result" ]; then
-          # Remove last char from output variable.
-          [[ -n $result ]] && result=${result%?}
-          # Erase '*' to the left.
-          printf '\b \b'
-        fi
-      else
-        # Add typed char to output variable.
-        result+=$char
-        # Print '*' in its stead.
-        printf '*'
-      fi
-    done
-    [ -z "$result" ] && [ -n "$default" ] && result="$default"
-    [ -z "$result" ] && print_error "${3}"
   done
 
   eval "$__resultvar="'$result'""
@@ -229,65 +144,7 @@ password_input() {
   eval "$__resultvar="'$result'""
 }
 
-ask_letsencrypt() {
-  if [ "$CONFIGURE_UFW" == false ] && [ "$CONFIGURE_FIREWALL_CMD" == false ]; then
-    print_warning "Let's Encrypt requires port 80/443 to be opened! You have opted out of the automatic firewall configuration; use this at your own risk (if port 80/443 is closed, the script will fail)!"
-  fi
-
-  echo -e -n "* Do you want to automatically configure HTTPS using Let's Encrypt? (y/N): "
-  read -r CONFIRM_SSL
-
-  if [[ "$CONFIRM_SSL" =~ [Yy] ]]; then
-    CONFIGURE_LETSENCRYPT=true
-    ASSUME_SSL=false
-  fi
-}
-
-ask_assume_ssl() {
-  echo "* Let's Encrypt is not going to be automatically configured by this script (user opted out)."
-  echo "* You can 'assume' Let's Encrypt, which means the script will download a nginx configuration that is configured to use a Let's Encrypt certificate but the script won't obtain the certificate for you."
-  echo "* If you assume SSL and do not obtain the certificate, your installation will not work."
-  echo -n "* Assume SSL or not? (y/N): "
-  read -r ASSUME_SSL_INPUT
-
-  [[ "$ASSUME_SSL_INPUT" =~ [Yy] ]] && ASSUME_SSL=true
-  true
-}
-
-check_FQDN_SSL() {
-  if [[ $(invalid_ip "$FQDN") == 1 && $FQDN != 'localhost' ]]; then
-    SSL_AVAILABLE=true
-  else
-    print_warning "* Let's Encrypt will not be available for IP addresses."
-    echo "* To use Let's Encrypt, you must use a valid domain name."
-  fi
-}
-
-ask_firewall() {
-  case "$OS" in
-  ubuntu | debian)
-    echo -e -n "* Do you want to automatically configure UFW (firewall)? (y/N): "
-    read -r CONFIRM_UFW
-
-    if [[ "$CONFIRM_UFW" =~ [Yy] ]]; then
-      CONFIGURE_UFW=true
-      CONFIGURE_FIREWALL=true
-    fi
-    ;;
-  centos)
-    echo -e -n "* Do you want to automatically configure firewall-cmd (firewall)? (y/N): "
-    read -r CONFIRM_FIREWALL_CMD
-
-    if [[ "$CONFIRM_FIREWALL_CMD" =~ [Yy] ]]; then
-      CONFIGURE_FIREWALL_CMD=true
-      CONFIGURE_FIREWALL=true
-    fi
-    ;;
-  esac
-}
-
-####### OS check funtions #######
-
+# other functions
 function detect_distro {
   if [ -f /etc/os-release ]; then
     # freedesktop.org and systemd
@@ -463,7 +320,7 @@ function insert_cronjob {
 function install_pteroq {
   echo "* Installing pteroq service.."
 
-  curl -o /etc/systemd/system/pteroq.service $GITHUB_BASE_URL/pteroq.service
+  curl -o /etc/systemd/system/pteroq.service $CONFIGS_URL/pteroq.service
   systemctl enable pteroq.service
   systemctl start pteroq
 
@@ -727,7 +584,7 @@ function ubuntu_universedep {
 }
 
 function centos_php {
-  curl -o /etc/php-fpm.d/www-pterodactyl.conf $GITHUB_BASE_URL/www-pterodactyl.conf
+  curl -o /etc/php-fpm.d/www-pterodactyl.conf $CONFIGS_URL/www-pterodactyl.conf
 
   systemctl enable php-fpm
   systemctl start php-fpm
@@ -846,7 +703,7 @@ function configure_nginx {
       rm -rf /etc/nginx/conf.d/default
 
       # download new config
-      curl -o /etc/nginx/conf.d/pterodactyl.conf $GITHUB_BASE_URL/$DL_FILE
+      curl -o /etc/nginx/conf.d/pterodactyl.conf $CONFIGS_URL/$DL_FILE
 
       # replace all <domain> places with the correct domain
       sed -i -e "s@<domain>@${FQDN}@g" /etc/nginx/conf.d/pterodactyl.conf
@@ -858,7 +715,7 @@ function configure_nginx {
       rm -rf /etc/nginx/sites-enabled/default
 
       # download new config
-      curl -o /etc/nginx/sites-available/pterodactyl.conf $GITHUB_BASE_URL/$DL_FILE
+      curl -o /etc/nginx/sites-available/pterodactyl.conf $CONFIGS_URL/$DL_FILE
 
       # replace all <domain> places with the correct domain
       sed -i -e "s@<domain>@${FQDN}@g" /etc/nginx/sites-available/pterodactyl.conf
@@ -1167,9 +1024,9 @@ function goodbye {
   #echo "* Unofficial add-ons and tips"
   #echo "* - Third-party themes, $(hyperlink 'https://github.com/TheFonix/Pterodactyl-Themes')"
   echo "*"
-  echo "* Installation is using nginx on $OS"
+  echo "* Installation is using $WEBSERVER on $OS"
   echo "* Thank you for using this script."
-  [ "$CONFIGURE_FIREWALL" == false ] && echo -e "* ${COLOR_RED}Note${COLOR_NC}: If you haven't configured the firewall: 80/443 (HTTP/HTTPS) is required to be open!"
+  echo -e "* ${COLOR_RED}Note${COLOR_NC}: If you haven't configured the firewall: 80/443 (HTTP/HTTPS) is required to be open!"
   echo "*"
   echo "* To continue, you need to configure Wings to run with your panel"
   echo -e "* ${COLOR_RED}Note${COLOR_NC}: Refer to the post installation steps now $(hyperlink 'https://github.com/ForestRacks/PteroInstaller#post-installation')"
