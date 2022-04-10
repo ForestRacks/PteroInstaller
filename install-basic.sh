@@ -667,7 +667,7 @@ function firewall_ufw {
   ufw allow 8080 comment "pterodactyl wings" > /dev/null
   ufw allow 2022 comment "pterodactyl sftp" > /dev/null
 
-  ufw enable
+  ufw --force enable
   ufw status numbered | sed '/v6/d'
 }
 
