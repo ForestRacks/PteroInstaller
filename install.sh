@@ -83,7 +83,7 @@ if [ "$basic" == false ] && [ "$standard" == false ]; then
   while [ "$panel" == false ] && [ "$wings" == false ]; do
     output "What would you like to do?"
     output "[1] Install the panel (Web Dashboard)"
-    output "[2] Install the wings (Machine Agent)"
+    output "[2] Install the wings (Machine Daemon)"
     output "[3] Install both on the same machine"
 
     echo -n "* Input 1-3: "
