@@ -1,4 +1,4 @@
-# Forestracks Pterodactyl Installer
+# ForestRacks Pterodactyl Installer
 Pterodactyl Panel installer for Forestracks customers. This installer works on both Ubuntu and CentOS. Please carefully read all options for the best experience.
 
 ## Installation:
@@ -24,9 +24,9 @@ chmod +x install.sh
 2) If you get Let's Encrypt SSL generation errors, you might be using an IP address as your FQDN and Let's Encrypt only generates SSLs for domains or you could be trying to generate an SSL for a FQDN that doesn't have an A-Record pointing to your machine IP address.
 
 ## Supported Operating Systems
-Ubuntu: 18.04, 20.04, 21.04, 22.04
-CentOS: 7.9, 8.6
-Debian: 9, 10, 11
+* Ubuntu: 18.04, 20.04, 21.04, 22.04
+* CentOS: 7.9, 8.6
+* Debian: 9, 10, 11
 
 ## Contributors ✨
 
