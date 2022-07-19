@@ -135,6 +135,8 @@ function check_os_comp {
       SUPPORTED=true
     elif [ "$OS_VER_MAJOR" == "20" ]; then
       SUPPORTED=true
+    elif [ "$OS_VER_MAJOR" == "22" ]; then
+      SUPPORTED=true
     else
       SUPPORTED=false
     fi
@@ -542,9 +544,9 @@ function main {
       fi
     fi
 
-    # Available for Ubuntu 18/20
+    # Available for Ubuntu 18/20/22
     if [ "$OS" == "ubuntu" ]; then
-      if [ "$OS_VER_MAJOR" == "18" ] || [ "$OS_VER_MAJOR" == "20" ]; then
+      if [ "$OS_VER_MAJOR" == "18" ] || [ "$OS_VER_MAJOR" == "20" ] || [ "$OS_VER_MAJOR" == "22" ]; then
         ask_letsencrypt
       fi
     fi

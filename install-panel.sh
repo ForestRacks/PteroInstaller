@@ -381,6 +381,35 @@ function apt_update {
   apt update -y && apt upgrade -y
 }
 
+function ubuntu22_dep {
+  echo "* Installing dependencies for Ubuntu 22.."
+
+  # Add "add-apt-repository" command
+  apt -y install software-properties-common curl apt-transport-https ca-certificates gnupg
+  
+  # Add additional repositories for PHP, Redis, and MariaDB
+  LC_ALL=C.UTF-8 add-apt-repository -y ppa:ondrej/php
+  add-apt-repository -y ppa:chris-lea/redis-server
+  curl -sS https://downloads.mariadb.com/MariaDB/mariadb_repo_setup | sudo bash
+
+  # Update repositories list
+  apt update -y
+
+  # Add universe repository if you are on Ubuntu 18.04
+  apt-add-repository universe
+
+  # Install Dependencies
+  apt -y install php8.1 php8.1-{cli,gd,mysql,pdo,mbstring,tokenizer,bcmath,xml,fpm,curl,zip} mariadb-server nginx tar unzip git redis-server redis
+
+  # enable services
+  systemctl start mariadb
+  systemctl enable mariadb
+  systemctl start redis-server
+  systemctl enable redis-server
+
+  echo "* Dependencies for Ubuntu installed!"
+}
+
 function ubuntu20_dep {
   echo "* Installing dependencies for Ubuntu 20.."
 
@@ -757,8 +786,10 @@ function perform_install {
   if [ "$OS" == "ubuntu" ]; then
     ubuntu_universedep
     apt_update
-    # different dependencies depending on if it's 20, 18 or 16
-    if [ "$OS_VER_MAJOR" == "20" ]; then
+    # different dependencies depending on if it's 22, 20 or 18
+    if [ "$OS_VER_MAJOR" == "22" ]; then
+      ubuntu22_dep
+    elif [ "$OS_VER_MAJOR" == "20" ]; then
       ubuntu20_dep
     elif [ "$OS_VER_MAJOR" == "18" ]; then
       ubuntu18_dep
@@ -773,7 +804,7 @@ function perform_install {
     insert_cronjob
     install_pteroq
 
-    if [ "$OS_VER_MAJOR" == "18" ] || [ "$OS_VER_MAJOR" == "20" ]; then
+    if [ "$OS_VER_MAJOR" == "18" ] || [ "$OS_VER_MAJOR" == "20" ] || [ "$OS_VER_MAJOR" == "22" ]; then
       if [ "$CONFIGURE_LETSENCRYPT" == true ]; then
         letsencrypt
       fi
@@ -940,7 +971,7 @@ function main {
 
     # Available for Ubuntu 18/20
     if [ "$OS" == "ubuntu" ]; then
-      if [ "$OS_VER_MAJOR" == "18" ] || [ "$OS_VER_MAJOR" == "20" ]; then
+      if [ "$OS_VER_MAJOR" == "18" ] || [ "$OS_VER_MAJOR" == "20" ] || [ "$OS_VER_MAJOR" == "22" ]; then
         ask_letsencrypt
       fi
     fi
