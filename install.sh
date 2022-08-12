@@ -60,9 +60,9 @@ output
 
 while [ "$basic" == false ] && [ "$standard" == false ] && [ "$advanced" == false ]; do
   output "What is your skill level?"
-  output "[1] Continue with the basic installer."
-  output "[2] Continue with the standard installer"
-  output "[3] Continue with the advanced installer"
+  output "[1] Basic Installer - Install panel and wings on your IP with almost zero prompts."
+  output "[2] Standard installer - Install panel and wings on your IP with prompts for an FQDN."
+  output "[3] Advanced installer - Install either the panel or wings with options like mail configuration"
 
   echo -n "* Input 1-3: "
   read -r action
