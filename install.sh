@@ -52,16 +52,16 @@ panel=false
 wings=false
 
 output "Pterodactyl installation script"
-output "This script is not associated with the official Pterodactyl Project."
+output "This script is not associated with the official Pterodactyl Project. PteroInstaller comes with ABSOLUTELY NO WARRANTY, to the extent permitted by applicable law."
 output
-output "DISCLAIMER: This script is a work in progress so it may have issues and rerunning this script can cause issues, we suggest reinstalling if you need to rerun."
+output "DISCLAIMER: This installer may not work as intended on all environments. Please reinstall your machine if you need to rerun the script because rerunning it could have unintended consequences."
 
 output
 
 while [ "$basic" == false ] && [ "$standard" == false ] && [ "$advanced" == false ]; do
-  output "What is your skill level?"
-  output "[1] Basic Installer - Install panel and wings on your IP with almost zero prompts."
-  output "[2] Standard installer - Install panel and wings on your IP with prompts for an FQDN."
+  output "What installation mode would you like to use?"
+  output "[1] Basic Installer - Install the panel and wings on your IP with very few prompts."
+  output "[2] Standard installer - Install the panel and wings with prompts for an FQDN and SSL."
   output "[3] Advanced installer - Install either the panel or wings with options like mail configuration"
 
   echo -n "* Input 1-3: "
