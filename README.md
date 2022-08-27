@@ -9,7 +9,7 @@ Pterodactyl Panel installer for Forestracks customers. This installer works on b
 bash <(curl -s https://raw.githubusercontent.com/ForestRacks/PteroInstaller/main/install.sh)
 ```
 ## Post Installation:
-* Note - YourFQDN.TLD refers to the panel URL you set during the installation process.
+* Please note "YourFQDN.TLD" refers to the panel URL you set during the installation process.
 1) Go to http://YourFQDN.TLD/admin/locations and make a location
 2) Go to http://YourFQDN.TLD/admin/nodes and create your first machine
 3) Go to http://YourFQDN.TLD/admin/nodes/view/1/allocation and add ports for your games
