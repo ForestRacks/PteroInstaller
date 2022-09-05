@@ -821,6 +821,9 @@ function letsencrypt {
   else 
     systemctl restart nginx
   fi
+  
+  # Enable auto-renewal
+  (crontab -l ; echo "0 23 * * * certbot renew --quiet --deploy-hook \"systemctl restart nginx && systemctl restart wings\" >> /dev/null 2>&1")| crontab -
 }
 
 #######################################

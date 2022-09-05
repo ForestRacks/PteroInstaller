@@ -249,6 +249,9 @@ letsencrypt() {
   if [ ! -d "/etc/letsencrypt/live/$FQDN/" ] || [ "$FAILED" == true ]; then
     print_warning "The process of obtaining a Let's Encrypt certificate failed!"
   fi
+  
+  # Enable auto-renewal
+  (crontab -l ; echo "0 23 * * * certbot renew --quiet --deploy-hook \"systemctl restart wings\" >> /dev/null 2>&1")| crontab -
 }
 
 function apt_update {
