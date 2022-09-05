@@ -254,7 +254,7 @@ function configure {
   php artisan p:node:make \
     --name="Node01" \
     --description="First Node" \
-    --fqdn="$FQDN" \
+    --fqdn=$FQDN \
     --public=1 \
     --locationId=1 \
     --scheme="http" \
@@ -270,8 +270,8 @@ function configure {
     --daemonBase="/var/lib/pterodactyl/volumes"
 
   # Fetch wings configuration
+  mkdir -p /etc/pterodactyl
   echo "$(php artisan p:node:configuration 1)" > /etc/pterodactyl/config.yml
-  systemctl restart wings
 
   # set folder permissions now
   set_folder_permissions
@@ -417,6 +417,7 @@ function systemd_file {
   curl -o /etc/systemd/system/wings.service $CONFIGS_URL/wings.service
   systemctl daemon-reload
   systemctl enable wings
+  systemctl restart wings
   echo "* Installed systemd service!"
 }
 
