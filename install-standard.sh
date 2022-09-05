@@ -308,6 +308,10 @@ function configure {
     --daemonSFTPPort=2022 \
     --daemonBase="/var/lib/pterodactyl/volumes"
 
+  # Fetch wings configuration
+  echo "$(php artisan p:node:configuration 1)" > /etc/pterodactyl/config.yml
+  systemctl restart wings
+
   # set folder permissions now
   set_folder_permissions
 }

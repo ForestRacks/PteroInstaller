@@ -251,7 +251,7 @@ function configure {
     --long="Primary location"
 
   # Create a node
-    php artisan p:node:make \
+  php artisan p:node:make \
     --name="Node01" \
     --description="First Node" \
     --fqdn="$FQDN" \
@@ -268,6 +268,10 @@ function configure {
     --daemonListeningPort=8080 \
     --daemonSFTPPort=2022 \
     --daemonBase="/var/lib/pterodactyl/volumes"
+
+  # Fetch wings configuration
+  echo "$(php artisan p:node:configuration 1)" > /etc/pterodactyl/config.yml
+  systemctl restart wings
 
   # set folder permissions now
   set_folder_permissions

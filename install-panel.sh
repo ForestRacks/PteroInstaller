@@ -252,7 +252,6 @@ function ptdl_dl {
 
 function configure {
   [ "$ASSUME_SSL" == true ] && app_url=https://$FQDN || app_url=http://$FQDN
-  [ "$ASSUME_SSL" == true ] && http_scheme=http || http_scheme=http
 
   # Fill in environment:setup automatically
   php artisan p:environment:setup \
@@ -291,30 +290,6 @@ if [[ "$mailneeded" =~ [Yy] ]]; then
     --name-last="$user_lastname" \
     --password="$user_password" \
     --admin=1
-
-  # Create a server location
-  php artisan p:location:make \
-    --short=Main \
-    --long="Primary location"
-
-  # Create a node
-    php artisan p:node:make \
-    --name="Node01" \
-    --description="First Node" \
-    --fqdn="$FQDN" \
-    --public=1 \
-    --locationId=1 \
-    --scheme="$http_scheme" \
-    --proxy="no" \
-    --maintenance=0 \
-    --maxMemory="$(free -m | awk 'FNR == 2 {print $2}')" \
-    --overallocateMemory=0 \
-    --maxDisk="$(df --total -m | tail -n 1 | awk '{print $2}')" \
-    --overallocateDisk=0 \
-    --uploadSize=100 \
-    --daemonListeningPort=8080 \
-    --daemonSFTPPort=2022 \
-    --daemonBase="/var/lib/pterodactyl/volumes"
 
   # set folder permissions now
   set_folder_permissions

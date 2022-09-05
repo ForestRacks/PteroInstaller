@@ -11,9 +11,6 @@ bash <(curl -s https://raw.githubusercontent.com/ForestRacks/PteroInstaller/main
 ## Post Installation:
 * Please note "example.com" refers to the panel URL you set during the installation process.
 1) Go to http://example.com/admin/nodes/view/1/allocation and add ports for your games
-2) Go to http://example.com/admin/nodes/view/1/configuration and click auto-deploy "Generate Token" button on the right.
-3) Run the autodeploy token command it gave you on your machine command line.
-4) Lastly, do `systemctl restart wings` and then you are done!
 
 ## Troubleshooting:
 1) If you get a "-bash: curl: command not found" error, run `apt install curl` on Debian based linux distributions or `yum install curl` on RHEL based distributions.
