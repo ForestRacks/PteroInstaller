@@ -309,6 +309,7 @@ function configure {
     --daemonBase="/var/lib/pterodactyl/volumes"
 
   # Fetch wings configuration
+  mkdir -p /etc/pterodactyl
   echo "$(php artisan p:node:configuration 1)" > /etc/pterodactyl/config.yml
 
   # set folder permissions now
