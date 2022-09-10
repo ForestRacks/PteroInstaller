@@ -197,7 +197,6 @@ function check_os_comp {
     fi
   elif [ "$OS" == "debian" ]; then
     PHP_SOCKET="/run/php/php8.1-fpm.sock"
-    CONFIGURE_UFW=true
     if [ "$OS_VER_MAJOR" == "9" ]; then
       SUPPORTED=true
     elif [ "$OS_VER_MAJOR" == "10" ]; then
@@ -207,7 +206,6 @@ function check_os_comp {
     fi
   elif [ "$OS" == "centos" ]; then
     PHP_SOCKET="/var/run/php-fpm/pterodactyl.sock"
-    CONFIGURE_FIREWALL=true
     if [ "$OS_VER_MAJOR" == "7" ]; then
       SUPPORTED=true
     elif [ "$OS_VER_MAJOR" == "8" ]; then
