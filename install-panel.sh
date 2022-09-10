@@ -185,15 +185,19 @@ function detect_distro {
 function check_os_comp {
   if [ "$OS" == "ubuntu" ]; then
     PHP_SOCKET="/run/php/php8.1-fpm.sock"
+    CONFIGURE_UFW=true
     if [ "$OS_VER_MAJOR" == "18" ]; then
       SUPPORTED=true
     elif [ "$OS_VER_MAJOR" == "20" ]; then
+      SUPPORTED=true
+    elif [ "$OS_VER_MAJOR" == "22" ]; then
       SUPPORTED=true
     else
       SUPPORTED=false
     fi
   elif [ "$OS" == "debian" ]; then
     PHP_SOCKET="/run/php/php8.1-fpm.sock"
+    CONFIGURE_UFW=true
     if [ "$OS_VER_MAJOR" == "9" ]; then
       SUPPORTED=true
     elif [ "$OS_VER_MAJOR" == "10" ]; then
@@ -203,6 +207,7 @@ function check_os_comp {
     fi
   elif [ "$OS" == "centos" ]; then
     PHP_SOCKET="/var/run/php-fpm/pterodactyl.sock"
+    CONFIGURE_FIREWALL=true
     if [ "$OS_VER_MAJOR" == "7" ]; then
       SUPPORTED=true
     elif [ "$OS_VER_MAJOR" == "8" ]; then
@@ -223,7 +228,6 @@ function check_os_comp {
     exit 1
   fi
 }
-
 #################################
 ## main installation functions ##
 #################################
