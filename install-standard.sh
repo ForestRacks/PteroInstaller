@@ -182,7 +182,6 @@ function detect_distro {
 function check_os_comp {
   if [ "$OS" == "ubuntu" ]; then
     PHP_SOCKET="/run/php/php8.1-fpm.sock"
-    CONFIGURE_UFW=true
     if [ "$OS_VER_MAJOR" == "18" ]; then
       SUPPORTED=true
     elif [ "$OS_VER_MAJOR" == "20" ]; then
@@ -194,7 +193,6 @@ function check_os_comp {
     fi
   elif [ "$OS" == "debian" ]; then
     PHP_SOCKET="/run/php/php8.1-fpm.sock"
-    CONFIGURE_UFW=true
     if [ "$OS_VER_MAJOR" == "9" ]; then
       SUPPORTED=true
     elif [ "$OS_VER_MAJOR" == "10" ]; then
