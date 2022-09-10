@@ -189,6 +189,8 @@ function check_os_comp {
       SUPPORTED=true
     elif [ "$OS_VER_MAJOR" == "20" ]; then
       SUPPORTED=true
+    elif [ "$OS_VER_MAJOR" == "22" ]; then
+      SUPPORTED=true
     else
       SUPPORTED=false
     fi
