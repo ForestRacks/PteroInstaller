@@ -131,19 +131,13 @@ function check_os_comp {
   fi
 
   if [ "$OS" == "ubuntu" ]; then
-    if [ "$OS_VER_MAJOR" == "18" ]; then
-      SUPPORTED=true
-    elif [ "$OS_VER_MAJOR" == "20" ]; then
-      SUPPORTED=true
-    elif [ "$OS_VER_MAJOR" == "22" ]; then
-      SUPPORTED=true
-    else
-      SUPPORTED=false
-    fi
+if [ "$OS_VER_MAJOR" == "18" ] || [ "$OS_VER_MAJOR" == "20" ] || [ "$OS_VER_MAJOR" == "22" ]; then
+  SUPPORTED=true
+else
+  SUPPORTED=false
+fi
   elif [ "$OS" == "debian" ]; then
-    if [ "$OS_VER_MAJOR" == "9" ]; then
-      SUPPORTED=true
-    elif [ "$OS_VER_MAJOR" == "10" ]; then
+    if [ "$OS_VER_MAJOR" == "9" ] || [ "$OS_VER_MAJOR" == "10" ] || [ "$OS_VER_MAJOR" == "11" ]; then
       SUPPORTED=true
     else
       SUPPORTED=false
@@ -542,7 +536,7 @@ function main {
 
     # Available for Debian 9/10
     if [ "$OS" == "debian" ]; then
-      if [ "$OS_VER_MAJOR" == "9" ] || [ "$OS_VER_MAJOR" == "10" ]; then
+      if [ "$OS_VER_MAJOR" == "9" ] || [ "$OS_VER_MAJOR" == "10" ] || [ "$OS_VER_MAJOR" == "11" ]; then
         ask_letsencrypt
       fi
     fi

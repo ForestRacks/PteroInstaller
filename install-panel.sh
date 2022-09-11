@@ -185,20 +185,14 @@ function detect_distro {
 function check_os_comp {
   if [ "$OS" == "ubuntu" ]; then
     PHP_SOCKET="/run/php/php8.1-fpm.sock"
-    if [ "$OS_VER_MAJOR" == "18" ]; then
-      SUPPORTED=true
-    elif [ "$OS_VER_MAJOR" == "20" ]; then
-      SUPPORTED=true
-    elif [ "$OS_VER_MAJOR" == "22" ]; then
-      SUPPORTED=true
-    else
-      SUPPORTED=false
-    fi
+if [ "$OS_VER_MAJOR" == "18" ] || [ "$OS_VER_MAJOR" == "20" ] || [ "$OS_VER_MAJOR" == "22" ]; then
+  SUPPORTED=true
+else
+  SUPPORTED=false
+fi
   elif [ "$OS" == "debian" ]; then
     PHP_SOCKET="/run/php/php8.1-fpm.sock"
-    if [ "$OS_VER_MAJOR" == "9" ]; then
-      SUPPORTED=true
-    elif [ "$OS_VER_MAJOR" == "10" ]; then
+    if [ "$OS_VER_MAJOR" == "9" ] || [ "$OS_VER_MAJOR" == "10" ] || [ "$OS_VER_MAJOR" == "11" ]; then
       SUPPORTED=true
     else
       SUPPORTED=false
@@ -383,7 +377,7 @@ function apt_update {
   apt update -y && apt upgrade -y
 }
 
-function ubuntu22_dep {
+function ubuntu_dep {
   echo "* Installing dependencies for Ubuntu 22.."
 
   # Add "add-apt-repository" command
@@ -399,62 +393,6 @@ function ubuntu22_dep {
 
   # Add universe repository if you are on Ubuntu 18.04
   apt-add-repository universe
-
-  # Install Dependencies
-  apt -y install php8.1 php8.1-{cli,gd,mysql,pdo,mbstring,tokenizer,bcmath,xml,fpm,curl,zip} mariadb-server nginx tar unzip git redis-server redis
-
-  # enable services
-  systemctl start mariadb
-  systemctl enable mariadb
-  systemctl start redis-server
-  systemctl enable redis-server
-
-  echo "* Dependencies for Ubuntu installed!"
-}
-
-function ubuntu20_dep {
-  echo "* Installing dependencies for Ubuntu 20.."
-
-  # Add "add-apt-repository" command
-  apt -y install software-properties-common curl apt-transport-https ca-certificates gnupg
-  
-  # Add additional repositories for PHP, Redis, and MariaDB
-  LC_ALL=C.UTF-8 add-apt-repository -y ppa:ondrej/php
-  add-apt-repository -y ppa:chris-lea/redis-server
-  curl -sS https://downloads.mariadb.com/MariaDB/mariadb_repo_setup | sudo bash
-
-  # Update repositories list
-  apt update
-
-  # Add universe repository if you are on Ubuntu 18.04
-  apt-add-repository universe
-
-  # Install Dependencies
-  apt -y install php8.1 php8.1-{cli,gd,mysql,pdo,mbstring,tokenizer,bcmath,xml,fpm,curl,zip} mariadb-server nginx tar unzip git redis-server redis
-
-  # enable services
-  systemctl start mariadb
-  systemctl enable mariadb
-  systemctl start redis-server
-  systemctl enable redis-server
-
-  echo "* Dependencies for Ubuntu installed!"
-}
-
-function ubuntu18_dep {
-  echo "* Installing dependencies for Ubuntu 18.."
-
-  # Add "add-apt-repository" command
-  apt -y install software-properties-common curl apt-transport-https ca-certificates gnupg
-
-  # Add PPA for PHP (we want php 8.0 and bionic only has 7.2)
-  LC_ALL=C.UTF-8 add-apt-repository -y ppa:ondrej/php
-
-  # Add the MariaDB repo (bionic has mariadb version 10.1 and we need newer than that)
-  curl -sS https://downloads.mariadb.com/MariaDB/mariadb_repo_setup | sudo bash
-
-  # Update repositories list
-  apt update
 
   # Install Dependencies
   apt -y install php8.1 php8.1-{cli,gd,mysql,pdo,mbstring,tokenizer,bcmath,xml,fpm,curl,zip} mariadb-server nginx tar unzip git redis-server redis
@@ -793,11 +731,11 @@ function perform_install {
     apt_update
     # different dependencies depending on if it's 22, 20 or 18
     if [ "$OS_VER_MAJOR" == "22" ]; then
-      ubuntu22_dep
+      ubuntu_dep
     elif [ "$OS_VER_MAJOR" == "20" ]; then
-      ubuntu20_dep
+      ubuntu_dep
     elif [ "$OS_VER_MAJOR" == "18" ]; then
-      ubuntu18_dep
+      ubuntu_dep
     else
       print_error "Unsupported version of Ubuntu."
       exit 1
@@ -818,7 +756,7 @@ function perform_install {
     apt_update
     if [ "$OS_VER_MAJOR" == "9" ]; then
       debian_stretch_dep
-    elif [ "$OS_VER_MAJOR" == "10" ]; then
+    elif [ "$OS_VER_MAJOR" == "10" ] || [ "$OS_VER_MAJOR" == "11" ]; then
       debian_dep
     fi
     install_composer
@@ -828,7 +766,7 @@ function perform_install {
     insert_cronjob
     install_pteroq
 
-    if [ "$OS_VER_MAJOR" == "9" ] || [ "$OS_VER_MAJOR" == "10" ]; then
+    if [ "$OS_VER_MAJOR" == "9" ] || [ "$OS_VER_MAJOR" == "10" ] || [ "$OS_VER_MAJOR" == "11" ]; then
       if [ "$CONFIGURE_LETSENCRYPT" == true ]; then
         letsencrypt
       fi
@@ -969,7 +907,7 @@ function main {
 
     # Available for Debian 9/10
     if [ "$OS" == "debian" ]; then
-      if [ "$OS_VER_MAJOR" == "9" ] || [ "$OS_VER_MAJOR" == "10" ]; then
+      if [ "$OS_VER_MAJOR" == "9" ] || [ "$OS_VER_MAJOR" == "10" ] || [ "$OS_VER_MAJOR" == "11" ]; then
         ask_letsencrypt
       fi
     fi
