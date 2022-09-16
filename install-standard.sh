@@ -203,6 +203,15 @@ fi
     else
       SUPPORTED=false
     fi
+  elif [ "$OS" == "almalinux" ]; then
+    PHP_SOCKET="/var/run/php-fpm/pterodactyl.sock"
+    if [ "$OS_VER_MAJOR" == "8" ]; then
+      SUPPORTED=true
+    elif [ "$OS_VER_MAJOR" == "9" ]; then
+      SUPPORTED=true
+    else
+      SUPPORTED=false
+    fi
   else
     SUPPORTED=false
   fi
@@ -317,7 +326,7 @@ function set_folder_permissions {
   # if os is ubuntu or debian, we do this
   if [ "$OS" == "debian" ] || [ "$OS" == "ubuntu" ]; then
     chown -R www-data:www-data ./*
-  elif [ "$OS" == "centos" ] && [ "$WEBSERVER" == "nginx" ]; then
+  elif [ "$OS" == "centos" ] && [ "$WEBSERVER" == "nginx" ] || [ "$OS" == "almalinux" ] && [ "$WEBSERVER" == "nginx" ]; then
     chown -R nginx:nginx ./*
   else
     print_error "Invalid webserver and OS setup."
@@ -393,9 +402,9 @@ function install_docker {
 
     # add APT repo
     sudo add-apt-repository \
-     "deb [arch=amd64] https://download.docker.com/linux/ubuntu \
-     $(lsb_release -cs) \
-     stable"
+      "deb [arch=amd64] https://download.docker.com/linux/ubuntu \
+      $(lsb_release -cs) \
+      stable"
 
     # install docker
     apt-get update
@@ -418,6 +427,23 @@ function install_docker {
       # install Docker
       yum install -y docker-ce docker-ce-cli containerd.io
     elif [ "$OS_VER_MAJOR" == "8" ]; then
+      # install dependencies for Docker
+      dnf install -y dnf-utils device-mapper-persistent-data lvm2
+
+      # add repo to dnf
+      dnf config-manager --add-repo=https://download.docker.com/linux/centos/docker-ce.repo
+
+      # install Docker
+      dnf install -y docker-ce docker-ce-cli containerd.io --nobest
+    fi
+
+    # make sure it's enabled & running
+    systemctl start docker
+    systemctl enable docker
+  fi
+
+  elif [ "$OS" == "almalinux" ]; then
+    if [ "$OS_VER_MAJOR" == "9" ] || [ "$OS_VER_MAJOR" == "9" ]; then
       # install dependencies for Docker
       dnf install -y dnf-utils device-mapper-persistent-data lvm2
 
@@ -457,7 +483,7 @@ function systemd_file {
 }
 
 function create_database {
-  if [ "$OS" == "centos" ]; then
+  if [ "$OS" == "centos" ] || [ "$OS" == "almalinux" ]; then
     # secure MariaDB
     echo "* MariaDB secure installation. The following are safe defaults."
     echo "* Set root password? [Y/n] Y"
@@ -594,7 +620,7 @@ function debian_dep {
   echo "* Dependencies for Debian 10 installed!"
 }
 
-function centos7_dep {
+function rhel7_dep {
   echo "* Installing dependencies for CentOS 7.."
 
   # update first
@@ -630,8 +656,8 @@ function centos7_dep {
   echo "* Dependencies for CentOS installed!"
 }
 
-function centos8_dep {
-  echo "* Installing dependencies for CentOS 8.."
+function rhel8_dep {
+  echo "* Installing dependencies for RHEL.."
 
   # update first
   dnf update -y
@@ -663,7 +689,7 @@ function centos8_dep {
   setsebool -P httpd_execmem 1
   setsebool -P httpd_unified 1
 
-  echo "* Dependencies for CentOS installed!"
+  echo "* Dependencies for RHEL installed!"
 }
 
 #################################
@@ -762,7 +788,7 @@ function letsencrypt {
     ln -s /snap/bin/certbot /usr/bin/certbot
   elif [ "$OS" == "centos" ]; then
     [ "$OS_VER_MAJOR" == "7" ] && yum install certbot
-    [ "$OS_VER_MAJOR" == "8" ] && dnf install certbot
+    [ "$OS_VER_MAJOR" == "8" || "$OS_VER_MAJOR" == "9" ] && dnf install certbot
   else
     # exit
     print_error "OS not supported."
@@ -809,7 +835,7 @@ function configure_nginx {
     DL_FILE="nginx.conf"
   fi
 
-  if [ "$OS" == "centos" ]; then
+  if [ "$OS" == "centos" ] || [ "$OS" == "almalinux" ]; then
       # remove default config
       rm -rf /etc/nginx/conf.d/default
 
@@ -916,11 +942,11 @@ function perform_install {
         letsencrypt
       fi
     fi
-  elif [ "$OS" == "centos" ]; then
+  elif [ "$OS" == "centos" ] || [ "$OS" == "almalinux" ]; then
     if [ "$OS_VER_MAJOR" == "7" ]; then
-      centos7_dep
-    elif [ "$OS_VER_MAJOR" == "8" ]; then
-      centos8_dep
+      rhel7_dep
+    elif [ "$OS_VER_MAJOR" == "8" ] || [ "$OS_VER_MAJOR" == "9" ]; then
+      rhel8_dep
     fi
     centos_php
     install_composer
@@ -1030,7 +1056,7 @@ function main {
 
   # Firewall-cmd is available for CentOS
   # Let's Encrypt is available for CentOS
-  if [ "$OS" == "centos" ]; then
+  if [ "$OS" == "centos" ] || [ "$OS" == "almalinux" ]; then
     CONFIGURE_FIREWALL_CMD=true
     CONFIGURE_FIREWALL=true
 

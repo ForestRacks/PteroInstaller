@@ -150,6 +150,14 @@ fi
     else
       SUPPORTED=false
     fi
+  elif [ "$OS" == "almalinux" ]; then
+    if [ "$OS_VER_MAJOR" == "8" ]; then
+      SUPPORTED=true
+    elif [ "$OS_VER_MAJOR" == "9" ]; then
+      SUPPORTED=true
+    else
+      SUPPORTED=false
+    fi
   else
     SUPPORTED=false
   fi
@@ -175,13 +183,13 @@ fi
 
     # unsilence
     unset DEBIAN_FRONTEND
-  elif [ "$OS" == "centos" ]; then
+  elif [ "$OS" == "centos" || "$OS" == "almalinux" ]; then
     if [ "$OS_VER_MAJOR" == "7" ]; then
       yum -q -y update
 
       # install virt-what
       yum -q -y install virt-what
-    elif [ "$OS_VER_MAJOR" == "8" ]; then
+    elif [ "$OS_VER_MAJOR" == "8" ] || [ "$OS_VER_MAJOR" == "9" ]; then
       dnf -y -q update
 
       # install virt-what
@@ -222,9 +230,9 @@ letsencrypt() {
     snap install core; sudo snap refresh core
     snap install --classic certbot
     ln -s /snap/bin/certbot /usr/bin/certbot
-  elif [ "$OS" == "centos" ]; then
+  elif [ "$OS" == "centos" ] || [ "$OS" == "almalinux" ]; then
     [ "$OS_VER_MAJOR" == "7" ] && yum install certbot
-    [ "$OS_VER_MAJOR" == "8" ] && dnf install certbot
+    [ "$OS_VER_MAJOR" == "8" || "$OS_VER_MAJOR" == "9" ] && dnf install certbot
   else
     # exit
     print_error "OS not supported."
@@ -265,7 +273,7 @@ function install_dep {
 
       # install dependencies
       yum -y install curl
-    elif [ "$OS_VER_MAJOR" == "8" ]; then
+    elif [ "$OS_VER_MAJOR" == "8" ] || [ "$OS_VER_MAJOR" == "9" ]; then
       dnf -y update
 
       # install dependencies
@@ -283,11 +291,11 @@ function install_docker {
     # install dependencies for Docker
     apt-get update
     apt-get -y install \
-     apt-transport-https \
-     ca-certificates \
-     curl \
-     gnupg2 \
-     software-properties-common
+      apt-transport-https \
+      ca-certificates \
+      curl \
+      gnupg2 \
+      software-properties-common
 
     # get their GPG key
     curl -fsSL https://download.docker.com/linux/debian/gpg | apt-key add -
@@ -326,9 +334,9 @@ function install_docker {
 
     # add APT repo
     sudo add-apt-repository \
-     "deb [arch=amd64] https://download.docker.com/linux/ubuntu \
-     $(lsb_release -cs) \
-     stable"
+      "deb [arch=amd64] https://download.docker.com/linux/ubuntu \
+      $(lsb_release -cs) \
+      stable"
 
     # install docker
     apt-get update
@@ -351,6 +359,23 @@ function install_docker {
       # install Docker
       yum install -y docker-ce docker-ce-cli containerd.io
     elif [ "$OS_VER_MAJOR" == "8" ]; then
+      # install dependencies for Docker
+      dnf install -y dnf-utils device-mapper-persistent-data lvm2
+
+      # add repo to dnf
+      dnf config-manager --add-repo=https://download.docker.com/linux/centos/docker-ce.repo
+
+      # install Docker
+      dnf install -y docker-ce docker-ce-cli containerd.io --nobest
+    fi
+
+    # make sure it's enabled & running
+    systemctl start docker
+    systemctl enable docker
+  fi
+
+  elif [ "$OS" == "almalinux" ]; then
+    if [ "$OS_VER_MAJOR" == "8" || "$OS_VER_MAJOR" == "9" ]; then
       # install dependencies for Docker
       dnf install -y dnf-utils device-mapper-persistent-data lvm2
 
@@ -392,10 +417,10 @@ function install_mariadb {
   if [ "$OS" == "ubuntu" ] || [ "$OS" == "debian" ]; then
     curl -sS https://downloads.mariadb.com/MariaDB/mariadb_repo_setup | bash
     apt update && apt install mariadb-server -y
-  elif [ "$OS" == "centos" ]; then
+  elif [ "$OS" == "centos" ] || [ "$OS" == "almalinux" ]; then
     [ "$OS_VER_MAJOR" == "7" ] && curl -sS https://downloads.mariadb.com/MariaDB/mariadb_repo_setup | bash
     [ "$OS_VER_MAJOR" == "7" ] && yum -y install mariadb-server
-    [ "$OS_VER_MAJOR" == "8" ] && dnf install -y mariadb mariadb-server
+    [ "$OS_VER_MAJOR" == "8" || "$OS_VER_MAJOR" == "9" ] && dnf install -y mariadb mariadb-server
   else
     print_error "Unsupported OS for MariaDB installations!"
   fi
@@ -550,7 +575,7 @@ function main {
   fi
 
   # Firewall-cmd is available for CentOS
-  if [ "$OS" == "centos" ]; then
+  if [ "$OS" == "centos" ] || [ "$OS" == "almalinux" ]; then
     echo -e -n "* Do you want to automatically configure firewall-cmd (firewall)? (y/N): "
     read -r CONFIRM_FIREWALL_CMD
 
