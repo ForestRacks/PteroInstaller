@@ -28,6 +28,7 @@ bash <(curl -s https://raw.githubusercontent.com/ForestRacks/PteroInstaller/main
 Created and maintained by:
 1) [Zinidia](https://github.com/Zinidia)
 2) [Vilhelm Prytz](https://github.com/vilhelmprytz)
+3) [ImGreen](https://github.com/GreenDiscord)
 3) [Neon](https://github.com/DeveloperNeon)
 4) [sam1370](https://github.com/sam1370)
 5) [Linux123123](https://github.com/Linux123123)
