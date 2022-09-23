@@ -411,7 +411,6 @@ function install_docker {
     # make sure it's enabled & running
     systemctl start docker
     systemctl enable docker
-  fi
 
   elif [ "$OS" == "almalinux" ]; then
     if [ "$OS_VER_MAJOR" == "9" ] || [ "$OS_VER_MAJOR" == "9" ]; then
