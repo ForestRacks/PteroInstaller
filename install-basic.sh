@@ -328,8 +328,8 @@ function install_docker {
   echo "* Installing docker .."
   if [ "$OS" == "debian" ]; then
     # install dependencies for Docker
-    apt-get update -y 
-    apt-get -y install \
+    DEBIAN_FRONTEND=noninteractive apt update -y 
+    DEBIAN_FRONTEND=noninteractive apt -y install \
      apt-transport-https \
      ca-certificates \
      curl \
@@ -349,8 +349,8 @@ function install_docker {
       stable"
 
     # install docker
-    apt-get update
-    apt-get -y install docker-ce docker-ce-cli containerd.io
+    DEBIAN_FRONTEND=noninteractive apt update
+    DEBIAN_FRONTEND=noninteractive apt -y install docker-ce docker-ce-cli containerd.io
 
     # make sure it's enabled & running
     systemctl start docker
@@ -358,8 +358,8 @@ function install_docker {
 
   elif [ "$OS" == "ubuntu" ]; then
     # install dependencies for Docker
-    apt-get update
-    apt-get -y install \
+    DEBIAN_FRONTEND=noninteractive apt update
+    DEBIAN_FRONTEND=noninteractive apt -y install \
       apt-transport-https \
       ca-certificates \
       curl \
@@ -378,8 +378,8 @@ function install_docker {
       stable"
 
     # install docker
-    apt-get update
-    apt-get -y install docker-ce docker-ce-cli containerd.io
+    DEBIAN_FRONTEND=noninteractive apt update
+    DEBIAN_FRONTEND=noninteractive apt -y install docker-ce docker-ce-cli containerd.io
 
     # make sure it's enabled & running
     systemctl start docker
@@ -492,14 +492,15 @@ function create_database {
 ##################################
 
 function apt_update {
-  apt update -y && apt upgrade -y
+  DEBIAN_FRONTEND=noninteractive apt update -y
+  DEBIAN_FRONTEND=noninteractive apt upgrade -y
 }
 
 function ubuntu_dep {
   echo "* Installing dependencies for Ubuntu 22.."
 
   # Add "add-apt-repository" command
-  apt -y install software-properties-common curl apt-transport-https ca-certificates gnupg
+  DEBIAN_FRONTEND=noninteractive apt -y install software-properties-common curl apt-transport-https ca-certificates gnupg
   
   # Add additional repositories for PHP, Redis, and MariaDB
   LC_ALL=C.UTF-8 add-apt-repository -y ppa:ondrej/php
@@ -507,13 +508,13 @@ function ubuntu_dep {
   curl -sS https://downloads.mariadb.com/MariaDB/mariadb_repo_setup | sudo bash
 
   # Update repositories list
-  apt update -y
+  DEBIAN_FRONTEND=noninteractive apt update -y
 
   # Add universe repository if you are on Ubuntu 18.04
   apt-add-repository universe
 
   # Install Dependencies
-  apt -y install php8.1 php8.1-{cli,gd,mysql,pdo,mbstring,tokenizer,bcmath,xml,fpm,curl,zip} mariadb-server nginx tar unzip git redis-server redis
+  DEBIAN_FRONTEND=noninteractive apt -y install php8.1 php8.1-{cli,gd,mysql,pdo,mbstring,tokenizer,bcmath,xml,fpm,curl,zip} mariadb-server nginx tar unzip git redis-server redis
 
   # enable services
   systemctl start mariadb
@@ -528,10 +529,10 @@ function debian_stretch_dep {
   echo "* Installing dependencies for Debian 8/9.."
 
   # MariaDB need dirmngr
-  apt -y install dirmngr
+  DEBIAN_FRONTEND=noninteractive apt -y install dirmngr
 
   # install PHP 8.0 using sury's repo instead of PPA
-  apt install -y ca-certificates apt-transport-https lsb-release
+  DEBIAN_FRONTEND=noninteractive apt install -y ca-certificates apt-transport-https lsb-release
   wget -O /etc/apt/trusted.gpg.d/php.gpg https://packages.sury.org/php/apt.gpg
   echo "deb https://packages.sury.org/php/ $(lsb_release -sc) main" | tee /etc/apt/sources.list.d/php.list
 
@@ -539,10 +540,10 @@ function debian_stretch_dep {
   curl -sS https://downloads.mariadb.com/MariaDB/mariadb_repo_setup | bash
 
   # Update repositories list
-  apt update -y
+  DEBIAN_FRONTEND=noninteractive apt update -y
 
   # Install Dependencies
-  apt -y install php8.1 php8.1-{cli,gd,mysql,pdo,mbstring,tokenizer,bcmath,xml,fpm,curl,zip} mariadb-server nginx curl tar unzip git redis-server
+  DEBIAN_FRONTEND=noninteractive apt -y install php8.1 php8.1-{cli,gd,mysql,pdo,mbstring,tokenizer,bcmath,xml,fpm,curl,zip} mariadb-server nginx curl tar unzip git redis-server
 
   # enable services
   systemctl start mariadb
@@ -557,18 +558,18 @@ function debian_dep {
   echo "* Installing dependencies for Debian 10.."
 
   # MariaDB need dirmngr
-  apt install -y dirmngr
+  DEBIAN_FRONTEND=noninteractive apt install -y dirmngr
 
   # install PHP 8.0 using sury's repo instead of default 7.2 package (in buster repo)
-  apt install ca-certificates apt-transport-https lsb-release -y
+  DEBIAN_FRONTEND=noninteractive apt install ca-certificates apt-transport-https lsb-release -y
   wget -O /etc/apt/trusted.gpg.d/php.gpg https://packages.sury.org/php/apt.gpg
   echo "deb https://packages.sury.org/php/ $(lsb_release -sc) main" | tee /etc/apt/sources.list.d/php.list
 
   # Update repositories list
-  apt update -y
+  DEBIAN_FRONTEND=noninteractive apt update -y
 
   # install dependencies
-  apt -y install php8.1 php8.1-{cli,gd,mysql,pdo,mbstring,tokenizer,bcmath,xml,fpm,curl,zip} mariadb-server nginx curl tar unzip git redis-server
+  DEBIAN_FRONTEND=noninteractive apt -y install php8.1 php8.1-{cli,gd,mysql,pdo,mbstring,tokenizer,bcmath,xml,fpm,curl,zip} mariadb-server nginx curl tar unzip git redis-server
 
   # enable services
   systemctl start mariadb
@@ -658,8 +659,8 @@ function rhel8_dep {
 function ubuntu_universedep {
   # Probably should change this, this is more of a bandaid fix for this
   # This function is ran before software-properties-common is installed
-  apt update -y
-  apt install software-properties-common -y
+  DEBIAN_FRONTEND=noninteractive apt update -y
+  DEBIAN_FRONTEND=noninteractive apt install software-properties-common -y
 
   if grep -q universe "$SOURCES_PATH"; then
     # even if it detects it as already existent, we'll still run the apt command to make sure
@@ -678,8 +679,8 @@ function centos_php {
 }
 
 function firewall_ufw {
-  apt update -y
-  apt install ufw -y
+  DEBIAN_FRONTEND=noninteractive apt update -y
+  DEBIAN_FRONTEND=noninteractive apt install ufw -y
 
   echo -e "\n* Enabling Uncomplicated Firewall (UFW)"
   echo "* Opening port 22 (SSH), 80 (HTTP) and 443 (HTTPS)"
@@ -741,7 +742,7 @@ function letsencrypt {
 
   # Install certbot
   if [ "$OS" == "debian" ] || [ "$OS" == "ubuntu" ]; then
-    apt-get install -y snapd
+    DEBIAN_FRONTEND=noninteractive apt install -y snapd
     snap install core; sudo snap refresh core
     snap install --classic certbot
     ln -s /snap/bin/certbot /usr/bin/certbot

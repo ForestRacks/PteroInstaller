@@ -178,8 +178,8 @@ fi
     export DEBIAN_FRONTEND=noninteractive
 
     # install virt-what
-    apt-get -y update -qq
-    apt-get install -y virt-what -qq
+    DEBIAN_FRONTEND=noninteractive apt -y update -qq
+    DEBIAN_FRONTEND=noninteractive apt install -y virt-what -qq
 
     # unsilence
     unset DEBIAN_FRONTEND
@@ -226,7 +226,7 @@ letsencrypt() {
 
   # Install certbot
   if [ "$OS" == "debian" ] || [ "$OS" == "ubuntu" ]; then
-    apt-get install -y snapd
+    DEBIAN_FRONTEND=noninteractive apt install -y snapd
     snap install core; sudo snap refresh core
     snap install --classic certbot
     ln -s /snap/bin/certbot /usr/bin/certbot
@@ -257,8 +257,8 @@ letsencrypt() {
 }
 
 function apt_update {
-  apt update -y
-  apt upgrade -y
+  DEBIAN_FRONTEND=noninteractive apt update -y
+  DEBIAN_FRONTEND=noninteractive apt upgrade -y
 }
 
 function install_dep {
@@ -266,7 +266,7 @@ function install_dep {
     apt_update
 
     # install dependencies
-    apt -y install curl
+    DEBIAN_FRONTEND=noninteractive apt -y install curl
   elif [ "$OS" == "centos" ]; then
     if [ "$OS_VER_MAJOR" == "7" ]; then
       yum -y update
@@ -289,8 +289,8 @@ function install_docker {
   echo "* Installing docker .."
   if [ "$OS" == "debian" ]; then
     # install dependencies for Docker
-    apt-get update
-    apt-get -y install \
+    DEBIAN_FRONTEND=noninteractive apt update
+    DEBIAN_FRONTEND=noninteractive apt -y install \
       apt-transport-https \
       ca-certificates \
       curl \
@@ -310,8 +310,8 @@ function install_docker {
       stable"
 
     # install docker
-    apt-get update
-    apt-get -y install docker-ce docker-ce-cli containerd.io
+    DEBIAN_FRONTEND=noninteractive apt update
+    DEBIAN_FRONTEND=noninteractive apt -y install docker-ce docker-ce-cli containerd.io
 
     # make sure it's enabled & running
     systemctl start docker
@@ -319,8 +319,8 @@ function install_docker {
 
   elif [ "$OS" == "ubuntu" ]; then
     # install dependencies for Docker
-    apt-get update
-    apt-get -y install \
+    DEBIAN_FRONTEND=noninteractive apt update
+    DEBIAN_FRONTEND=noninteractive apt -y install \
       apt-transport-https \
       ca-certificates \
       curl \
@@ -339,8 +339,8 @@ function install_docker {
       stable"
 
     # install docker
-    apt-get update
-    apt-get -y install docker-ce docker-ce-cli containerd.io
+    DEBIAN_FRONTEND=noninteractive apt update
+    DEBIAN_FRONTEND=noninteractive apt -y install docker-ce docker-ce-cli containerd.io
 
     # make sure it's enabled & running
     systemctl start docker
@@ -415,7 +415,7 @@ function systemd_file {
 function install_mariadb {
   if [ "$OS" == "ubuntu" ] || [ "$OS" == "debian" ]; then
     curl -sS https://downloads.mariadb.com/MariaDB/mariadb_repo_setup | bash
-    apt update && apt install mariadb-server -y
+    DEBIAN_FRONTEND=noninteractive apt update && apt install mariadb-server -y
   elif [ "$OS" == "centos" ] || [ "$OS" == "almalinux" ]; then
     [ "$OS_VER_MAJOR" == "7" ] && curl -sS https://downloads.mariadb.com/MariaDB/mariadb_repo_setup | bash
     [ "$OS_VER_MAJOR" == "7" ] && yum -y install mariadb-server
@@ -433,7 +433,7 @@ function install_mariadb {
 
 function firewall_ufw {
   apt update
-  apt install ufw -y
+  DEBIAN_FRONTEND=noninteractive apt install ufw -y
 
   echo -e "\n* Enabling Uncomplicated Firewall (UFW)"
   echo "* Opening port 22 (SSH), 8080 (Daemon Port), 2022 (Daemon SFTP Port)"
