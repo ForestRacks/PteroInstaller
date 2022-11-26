@@ -34,7 +34,7 @@ PASSWORD=$(openssl rand -base64 10)
 
 # variables
 WEBSERVER="nginx"
-FQDN="$(hostname -I)"
+FQDN="$(hostname -I | awk '{print $1}')"
 
 # default MySQL credentials
 MYSQL_DB="panel"
