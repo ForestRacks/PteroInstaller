@@ -259,7 +259,7 @@ function configure {
   [ "$ASSUME_SSL" == true ] && app_url=https://$FQDN || app_url=http://$FQDN
 
   # Fill in environment:setup automatically
-  php artisan p:environment:setup \
+  php artisan p:environment:setup --telemetry=false \
     --author="$email" \
     --url="$app_url" \
     --timezone="$timezone" \

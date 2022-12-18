@@ -256,7 +256,7 @@ function configure {
   [ "$ASSUME_SSL" == true ] && http_scheme=https || http_scheme=http
 
   # Fill in environment:setup automatically
-  php artisan p:environment:setup \
+  php artisan p:environment:setup --telemetry=false \
     --author="$email" \
     --url="$http_scheme://$FQDN" \
     --timezone="$timezone" \
