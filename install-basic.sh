@@ -30,7 +30,7 @@ PTERODACTYL_VERSION="$(get_latest_release "pterodactyl/panel")"
 echo "* Latest version is $PTERODACTYL_VERSION"
 
 # Generate password
-PASSWORD=$(openssl rand -base64 10)
+PASSWORD=$(openssl rand -base64 12)
 
 # variables
 WEBSERVER="nginx"
