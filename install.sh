@@ -101,10 +101,10 @@ if [ "$basic" == false ] && [ "$standard" == false ]; then
     esac
   done
 
-  [ "$panel" == true ] && bash <(curl -s https://raw.githubusercontent.com/ForestRacks/PteroInstaller/main/install-panel.sh)
-  [ "$wings" == true ] && bash <(curl -s https://raw.githubusercontent.com/ForestRacks/PteroInstaller/main/install-wings.sh)
+  [ "$panel" == true ] && bash <(curl -s https://raw.githubusercontent.com/ForestRacks/PteroInstaller/Production/install-panel.sh)
+  [ "$wings" == true ] && bash <(curl -s https://raw.githubusercontent.com/ForestRacks/PteroInstaller/Production/install-wings.sh)
 elif [ "$standard" == true ]; then
-  bash <(curl -s https://raw.githubusercontent.com/ForestRacks/PteroInstaller/main/install-standard.sh)
+  bash <(curl -s https://raw.githubusercontent.com/ForestRacks/PteroInstaller/Production/install-standard.sh)
 else
-  bash <(curl -s https://raw.githubusercontent.com/ForestRacks/PteroInstaller/main/install-basic.sh)
+  bash <(curl -s https://raw.githubusercontent.com/ForestRacks/PteroInstaller/Production/install-basic.sh)
 fi

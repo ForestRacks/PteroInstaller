@@ -252,6 +252,26 @@ function ptdl_dl {
   composer install --no-dev --optimize-autoloader --quiet --no-interaction
 
   php artisan key:generate --force
+
+  # Replace the egg docker images with ForestRacks's optimized images
+  for file in /var/www/pterodactyl/database/Seeders/eggs/*/*.json; do
+    # Read the contents of the file into a variable
+    contents=$(<"$file")
+
+    # Replace the Pterodactyl java images with the ForestRacks java images
+    contents=$(echo "$contents" | sed 's|ghcr.io/pterodactyl/yolks:java_\([0-9]*\)|ghcr.io/forestracks/java:\1|g')
+
+    # Replace the Pterodactyl game images with the ForestRacks games images
+    contents=$(echo "$contents" | sed 's|quay.io/pterodactyl/core:rust|ghcr.io/forestracks/games:rust|g')
+    contents=$(echo "$contents" | sed 's|quay.io/pterodactyl/games:source|ghcr.io/forestracks/games:steam|g')
+
+    # Replace the Parkercvp base images with the ForestRacks base image
+    contents=$(echo "$contents" | sed 's|quay.io/parkervcp/pterodactyl-images:debian_source|ghcr.io/forestracks/base:main|g')
+
+    # Write the modified contents back to the file
+    echo "$contents" > "$file"
+  done
+
   echo "* Downloaded pterodactyl panel files & installed composer dependencies!"
 }
 
