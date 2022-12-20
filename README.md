@@ -1,23 +1,23 @@
 # ForestRacks Pterodactyl Installer
-Pterodactyl Panel installer for Forestracks customers. This installer works on both Ubuntu and CentOS. Please carefully read all options for the best experience.
+Welcome to the ForestRacks Pterodactyl Installer repository! This installer is specifically designed for ForestRacks customers to easily install and set up the Pterodactyl Panel on Debian-based or RHEL-based machines.
 
 ## Installation:
-1) Reinstall your machine if you changed anything before you run the installer.
-2) Point a DNS A-Record to your machine IP like panel.forestracks.com to 192.168.53.72
-3) Download and run installer:
+1) To get started, it's important to ensure that your machine is freshly reinstalled if you've made any changes to it beforehand. 
+2) Point a DNS A-Record to your machine's IP address, such as panel.forestracks.com to 192.168.53.72.
+3) To download and run the installer, simply enter the following command into your terminal and follow the prompts:
 ```
 bash <(curl -s https://raw.githubusercontent.com/ForestRacks/PteroInstaller/Production/install.sh)
 ```
 ## Post Installation:
 * Please note "example.com" refers to the panel URL you set during the installation process.
-1) Go to http://example.com/admin/nodes/view/1/allocation and add ports for your games
+1) After the installation is complete, go to http://example.com/admin/nodes/view/1/allocation to add the necessary ports for your games.
 
 ## Troubleshooting:
-1) If you get a "-bash: curl: command not found" error, run `apt install curl` on Debian based linux distributions or `yum install curl` on RHEL based distributions.
-2) If you get a mysql connection error when you run the installer, you mostly ran the installer multiple times. The easiest way of fixing this is reinstalling your OS and running the install script again.
-3) If you get Let's Encrypt SSL generation errors, you might be using an IP address as your FQDN and Let's Encrypt only generates SSLs for domains or you could be trying to generate an SSL for a FQDN that doesn't have an A-Record pointing to your machine IP address.
+1) If you encounter any issues during the installation process, our troubleshooting section has some helpful tips. If you get a "curl: command not found" error, make sure to run `apt install curl` on Debian-based distributions or `yum install curl` on RHEL-based distributions.
+2) If you receive a mysql connection error, you may have run the installer multiple times – in this case, the best solution is to reinstall your operating system and run the install script again.
+3) If you encounter Let's Encrypt SSL generation errors, it could be because you're using an IP address instead of a domain or because the FQDN you're trying to generate an SSL for doesn't have an A-Record pointing to your machine IP.
 
-## Supported Operating Systems
+## Compatible operating systems:
 * Ubuntu: 18.04, 20.04, 21.04, 22.04
 * CentOS: 7, 8
 * AlmaLinux: 8, 9
@@ -25,7 +25,7 @@ bash <(curl -s https://raw.githubusercontent.com/ForestRacks/PteroInstaller/Prod
 
 ## Contributors ✨
 
-Created and maintained by:
+We would like to thank the following contributors for their work in maintaining and creating this installer:
 1) [Zinidia](https://github.com/Zinidia)
 2) [Vilhelm Prytz](https://github.com/vilhelmprytz)
 3) [ImGreen](https://github.com/GreenDiscord)
