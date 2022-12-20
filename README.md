@@ -1,5 +1,5 @@
 # ForestRacks Pterodactyl Installer
-Welcome to the ForestRacks Pterodactyl Installer repository! This installer is specifically designed for ForestRacks customers to easily install and set up the Pterodactyl Panel on Debian-based or RHEL-based machines.
+Welcome to the ForestRacks Pterodactyl Installer repository! This installer is specifically designed for ForestRacks customers to easily install and set up the Pterodactyl Panel on Debian-based or RHEL-based machines. If you encounter any issues during the installation process, our troubleshooting section has some helpful tips.
 
 ## Installation:
 1) To get started, it's important to ensure that your machine is freshly reinstalled if you've made any changes to it beforehand. 
@@ -13,7 +13,7 @@ bash <(curl -s https://raw.githubusercontent.com/ForestRacks/PteroInstaller/Prod
 1) After the installation is complete, go to http://example.com/admin/nodes/view/1/allocation to add the necessary ports for your games.
 
 ## Troubleshooting:
-1) If you encounter any issues during the installation process, our troubleshooting section has some helpful tips. If you get a "curl: command not found" error, make sure to run `apt install curl` on Debian-based distributions or `yum install curl` on RHEL-based distributions.
+1) If you get a "curl: command not found" error, make sure to run `apt install curl` on Debian-based distributions or `yum install curl` on RHEL-based distributions.
 2) If you receive a mysql connection error, you may have run the installer multiple times – in this case, the best solution is to reinstall your operating system and run the install script again.
 3) If you encounter Let's Encrypt SSL generation errors, it could be because you're using an IP address instead of a domain or because the FQDN you're trying to generate an SSL for doesn't have an A-Record pointing to your machine IP.
 
