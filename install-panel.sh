@@ -255,21 +255,23 @@ function ptdl_dl {
 
   # Replace the egg docker images with ForestRacks's optimized images
   for file in /var/www/pterodactyl/database/Seeders/eggs/*/*.json; do
-    # Read the contents of the file into a variable
-    contents=$(<"$file")
+    # Extract the docker_images field from the file using jq
+    docker_images=$(jq -r '.docker_images' "$file")
 
-    # Replace the Pterodactyl java images with the ForestRacks java images
-    contents=$(echo "$contents" | sed 's|ghcr.io/pterodactyl/yolks:java_\([0-9]*\)|ghcr.io/forestracks/java:\1|g')
+    # Check if the replacement match exists in the docker_images field
+    if echo "$docker_images" | grep -q "ghcr.io/pterodactyl/yolks:java_" || echo "$docker_images" | grep -q "quay.io/pterodactyl/core:rust" || echo "$docker_images" | grep -q "quay.io/pterodactyl/games:source" || echo "$docker_images" | grep -q "ghcr.io/pterodactyl/games:source" || echo "$docker_images" | grep -q "quay.io/parkervcp/pterodactyl-images:debian_source"; then
+      # Read the contents of the file into a variable
+      contents=$(<"$file")
 
-    # Replace the Pterodactyl game images with the ForestRacks games images
-    contents=$(echo "$contents" | sed 's|quay.io/pterodactyl/core:rust|ghcr.io/forestracks/games:rust|g')
-    contents=$(echo "$contents" | sed 's|quay.io/pterodactyl/games:source|ghcr.io/forestracks/games:steam|g')
+      # Update the docker_images object using multiple jq filters
+      contents=$(echo "$contents" | jq '.docker_images |= map_values(. | gsub("ghcr.io/pterodactyl/yolks:java_"; "ghcr.io/forestracks/java:"))' | jq '.docker_images |= map_values(. | gsub("quay.io/pterodactyl/core:rust"; "ghcr.io/forestracks/games:rust"))' | jq '.docker_images |= map_values(. | gsub("quay.io/pterodactyl/games:source"; "ghcr.io/forestracks/games:steam"))' | jq '.docker_images |= map_values(. | gsub("ghcr.io/pterodactyl/games:source"; "ghcr.io/forestracks/games:steam"))' | jq '.docker_images |= map_values(. | gsub("quay.io/parkervcp/pterodactyl-images:debian_source"; "ghcr.io/forestracks/base:main"))')
 
-    # Replace the Parkercvp base images with the ForestRacks base image
-    contents=$(echo "$contents" | sed 's|quay.io/parkervcp/pterodactyl-images:debian_source|ghcr.io/forestracks/base:main|g')
-
-    # Write the modified contents back to the file
-    echo "$contents" > "$file"
+      # Replace the forward slashes in the docker_images object using sed
+      contents=$(echo "$contents" | sed 's/\//\\\//g')
+    
+      # Write the modified contents back to the file
+      echo "$contents" > "$file"
+    fi
   done
 
   echo "* Downloaded pterodactyl panel files & installed composer dependencies!"
@@ -412,7 +414,7 @@ function ubuntu_dep {
   echo "* Installing dependencies for Ubuntu 22.."
 
   # Add "add-apt-repository" command
-  DEBIAN_FRONTEND=noninteractive apt -y install software-properties-common curl apt-transport-https ca-certificates gnupg
+  DEBIAN_FRONTEND=noninteractive apt -y install software-properties-common curl apt-transport-https ca-certificates gnupg jq
   
   # Add additional repositories for PHP, Redis, and MariaDB
   LC_ALL=C.UTF-8 add-apt-repository -y ppa:ondrej/php
@@ -441,10 +443,10 @@ function debian_stretch_dep {
   echo "* Installing dependencies for Debian 8/9.."
 
   # MariaDB need dirmngr
-  DEBIAN_FRONTEND=noninteractive apt -y install dirmngr
+  DEBIAN_FRONTEND=noninteractive apt -y install dirmngr jq
 
-  # install PHP 8.0 using sury's repo instead of PPA
-  DEBIAN_FRONTEND=noninteractive apt install ca-certificates apt-transport-https lsb-release -y
+  # install PHP 8.1 using sury's repo instead of PPA
+  DEBIAN_FRONTEND=noninteractive apt install -y ca-certificates apt-transport-https lsb-release
   wget -O /etc/apt/trusted.gpg.d/php.gpg https://packages.sury.org/php/apt.gpg
   echo "deb https://packages.sury.org/php/ $(lsb_release -sc) main" | tee /etc/apt/sources.list.d/php.list
  
@@ -472,8 +474,8 @@ function debian_dep {
   # MariaDB need dirmngr
   DEBIAN_FRONTEND=noninteractive apt -y install dirmngr
 
-  # install PHP 8.0 using sury's repo instead of default 7.2 package (in buster repo)
-  DEBIAN_FRONTEND=noninteractive apt install ca-certificates apt-transport-https lsb-release -y
+  # install PHP 8.1 using sury's repo instead of default 7.2 package (in buster repo)
+  DEBIAN_FRONTEND=noninteractive apt install -y ca-certificates apt-transport-https lsb-release
   wget -O /etc/apt/trusted.gpg.d/php.gpg https://packages.sury.org/php/apt.gpg
   echo "deb https://packages.sury.org/php/ $(lsb_release -sc) main" | tee /etc/apt/sources.list.d/php.list
 
@@ -499,7 +501,7 @@ function rhel7_dep {
   yum update -y
 
   # SELinux tools
-  yum install -y policycoreutils policycoreutils-python selinux-policy selinux-policy-targeted libselinux-utils setroubleshoot-server setools setools-console mcstrans
+  yum install -y policycoreutils policycoreutils-python selinux-policy selinux-policy-targeted libselinux-utils setroubleshoot-server setools setools-console mcstrans jq
 
   # add remi repo (php8.1)
   yum install -y epel-release http://rpms.remirepo.net/enterprise/remi-release-7.rpm
@@ -535,11 +537,11 @@ function rhel8_dep {
   dnf update -y
 
   # SELinux tools
-  dnf install -y policycoreutils selinux-policy selinux-policy-targeted setroubleshoot-server setools setools-console mcstrans
+  dnf install -y policycoreutils selinux-policy selinux-policy-targeted setroubleshoot-server setools setools-console mcstrans jq
 
   # add remi repo (php8.1)
   dnf install -y epel-release http://rpms.remirepo.net/enterprise/remi-release-8.rpm
-  dnf module enable -y php:remi-8.0
+  dnf module enable -y php:remi-8.1
   dnf update -y
 
   dnf install -y php php-common php-fpm php-cli php-json php-mysqlnd php-gd php-mbstring php-pdo php-zip php-bcmath php-dom php-opcache
