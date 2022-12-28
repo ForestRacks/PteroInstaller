@@ -223,6 +223,7 @@ fi
 
 letsencrypt() {
   FAILED=false
+  NGINX=true
 
   # Install certbot
   if [ "$OS" == "debian" ] || [ "$OS" == "ubuntu" ]; then
@@ -240,10 +241,15 @@ letsencrypt() {
   fi
 
   # If user has nginx
-  systemctl stop nginx || true
+  systemctl stop nginx || NGINX=false
 
   # Obtain certificate
-  certbot certonly --no-eff-email --email "$EMAIL" --standalone -d "$FQDN" || FAILED=true
+
+  if [ "$NGINX" == true ]; then
+    certbot --nginx --redirect --no-eff-email --email "$EMAIL" -d "$FQDN" || FAILED=true
+  else
+    certbot certonly --no-eff-email --email "$EMAIL" --standalone -d "$FQDN" || FAILED=true
+  fi
 
   systemctl start nginx || true
 

@@ -817,11 +817,8 @@ function letsencrypt {
     exit 1
   fi
 
-  # Stop nginx
-  systemctl stop nginx
-
   # Obtain certificate
-  certbot certonly --no-eff-email --email "$email" --standalone -d "$FQDN" || FAILED=true
+  certbot --nginx --redirect --no-eff-email --email "$email" -d "$FQDN" || FAILED=true
 
   # Check if it succeded
   if [ ! -d "/etc/letsencrypt/live/$FQDN/" ] || [ "$FAILED" == true ]; then
