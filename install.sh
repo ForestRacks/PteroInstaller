@@ -21,7 +21,7 @@ if ! [ -x "$(command -v curl)" ]; then
   fi
   if [ -n "$(command -v apt-get)" ]; then
     DEBIAN_FRONTEND=noninteractive apt update -y >> /dev/null 2>&1
-    DEBIAN_FRONTEND=noninteractive apt install -y --no-install-recommends snapd cron curl gzip >> /dev/null 2>&1
+    DEBIAN_FRONTEND=noninteractive apt install -y --no-install-recommends snapd cron curl wget gzip >> /dev/null 2>&1
   fi
   # Check if curl was installed
   if ! [ -x "$(command -v curl)" ]; then
