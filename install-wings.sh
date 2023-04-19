@@ -420,12 +420,20 @@ function systemd_file {
 
 function install_mariadb {
   if [ "$OS" == "ubuntu" ] || [ "$OS" == "debian" ]; then
-    curl -sS https://downloads.mariadb.com/MariaDB/mariadb_repo_setup | bash
-    DEBIAN_FRONTEND=noninteractive apt update && apt install mariadb-server -y
+    if [ -f /etc/apt/sources.list.d/mariadb.list ]; then
+      echo "MariaDB already installed"
+    else
+      curl -sS https://downloads.mariadb.com/MariaDB/mariadb_repo_setup | bash
+      DEBIAN_FRONTEND=noninteractive apt update && apt install mariadb-server -y
+    fi
   elif [ "$OS" == "centos" ] || [ "$OS" == "almalinux" ]; then
-    [ "$OS_VER_MAJOR" == "7" ] && curl -sS https://downloads.mariadb.com/MariaDB/mariadb_repo_setup | bash
-    [ "$OS_VER_MAJOR" == "7" ] && yum -y install mariadb-server
-    [ "$OS_VER_MAJOR" == "8" || "$OS_VER_MAJOR" == "9" ] && dnf install -y mariadb mariadb-server
+    if [ -x /usr/bin/mysql ]; then
+      echo "MariaDB already installed"
+    else
+      [ "$OS_VER_MAJOR" == "7" ] && curl -sS https://downloads.mariadb.com/MariaDB/mariadb_repo_setup | bash
+      [ "$OS_VER_MAJOR" == "7" ] && yum -y install mariadb-server
+      [ "$OS_VER_MAJOR" == "8" || "$OS_VER_MAJOR" == "9" ] && dnf install -y mariadb mariadb-server
+    fi
   else
     print_error "Unsupported OS for MariaDB installations!"
   fi
