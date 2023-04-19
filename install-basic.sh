@@ -792,7 +792,7 @@ function configure_nginx {
   echo "* Configuring nginx .."
   DL_FILE="nginx.conf"
 
-  if [ "$OS" == "centos" || "$OS" == "almalinux" ]; then
+  if [ "$OS" == "centos" ] || [ "$OS" == "almalinux" ]; then
       # remove default config
       rm -rf /etc/nginx/conf.d/default
 
@@ -817,7 +817,7 @@ function configure_nginx {
       # replace all <php_socket> places with correct socket "path"
       sed -i -e "s@<php_socket>@${PHP_SOCKET}@g" /etc/nginx/sites-available/pterodactyl.conf
 
-      # on debian 8/9, TLS v1.3 is not supported (see #76)
+      # on debian 8/9, TLS v1.3 is not supported
       # this if statement can be refactored into a one-liner but I think this is more readable
       if [ "$OS" == "debian" ]; then
         if [ "$OS_VER_MAJOR" == "8" ] || [ "$OS_VER_MAJOR" == "9" ]; then
