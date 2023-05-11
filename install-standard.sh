@@ -727,10 +727,10 @@ function ubuntu_universedep {
 
   if grep -q universe "$SOURCES_PATH"; then
     # even if it detects it as already existent, we'll still run the apt command to make sure
-    add-apt-repository universe
+    apt-add-repository universe -y
     echo "* Ubuntu universe repo already exists."
   else
-    add-apt-repository universe
+    apt-add-repository universe -y
   fi
 }
 
