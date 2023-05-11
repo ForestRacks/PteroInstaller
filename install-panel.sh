@@ -426,7 +426,7 @@ function ubuntu_dep {
   DEBIAN_FRONTEND=noninteractive apt update -y
 
   # Add universe repository if you are on Ubuntu 18.04
-  apt-add-repository universe
+  apt-add-repository universe -y
 
   # Install Dependencies
   DEBIAN_FRONTEND=noninteractive apt -y install php8.1 php8.1-{cli,gd,mysql,pdo,mbstring,tokenizer,bcmath,xml,fpm,curl,zip} mariadb-server nginx tar unzip git redis-server redis
