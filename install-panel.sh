@@ -413,11 +413,11 @@ function apt_update {
 function ubuntu_dep {
   echo "* Installing dependencies for Ubuntu 22.."
 
-  # Add "add-apt-repository" command
+  # Add "apt-add-repository" command
   DEBIAN_FRONTEND=noninteractive apt -y install software-properties-common curl apt-transport-https ca-certificates gnupg jq
   
   # Add additional repositories for PHP, Redis, and MariaDB
-  LC_ALL=C.UTF-8 add-apt-repository -y ppa:ondrej/php
+  LC_ALL=C.UTF-8 apt-add-repository -y ppa:ondrej/php
   curl -fsSL https://packages.redis.io/gpg | sudo gpg --dearmor -o /usr/share/keyrings/redis-archive-keyring.gpg
   echo "deb [signed-by=/usr/share/keyrings/redis-archive-keyring.gpg] https://packages.redis.io/deb $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/redis.list
   curl -sS https://downloads.mariadb.com/MariaDB/mariadb_repo_setup | sudo bash

@@ -366,7 +366,7 @@ function install_docker {
     apt-key fingerprint 0EBFCD88
 
     # add APT repo
-    add-apt-repository \
+    apt-add-repository -y \
       "deb [arch=amd64] https://download.docker.com/linux/debian \
       $(lsb_release -cs) \
       stable"
@@ -395,7 +395,7 @@ function install_docker {
     apt-key fingerprint 0EBFCD88
 
     # add APT repo
-    sudo add-apt-repository \
+    sudo apt-add-repository -y \
       "deb [arch=amd64] https://download.docker.com/linux/ubuntu \
       $(lsb_release -cs) \
       stable"
@@ -522,11 +522,11 @@ function apt_update {
 function ubuntu_dep {
   echo "* Installing dependencies for Ubuntu 22.."
 
-  # Add "add-apt-repository" command
+  # Add "apt-add-repository" command
   DEBIAN_FRONTEND=noninteractive apt -y install software-properties-common curl apt-transport-https ca-certificates gnupg jq
   
   # Add additional repositories for PHP, Redis, and MariaDB
-  LC_ALL=C.UTF-8 add-apt-repository -y ppa:ondrej/php
+  LC_ALL=C.UTF-8 apt-add-repository -y ppa:ondrej/php
   curl -fsSL https://packages.redis.io/gpg | sudo gpg --dearmor -o /usr/share/keyrings/redis-archive-keyring.gpg
   echo "deb [signed-by=/usr/share/keyrings/redis-archive-keyring.gpg] https://packages.redis.io/deb $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/redis.list
   curl -sS https://downloads.mariadb.com/MariaDB/mariadb_repo_setup | sudo bash

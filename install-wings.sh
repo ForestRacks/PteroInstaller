@@ -310,7 +310,7 @@ function install_docker {
     apt-key fingerprint 0EBFCD88
 
     # add APT repo
-    add-apt-repository \
+    apt-add-repository -y \
       "deb [arch=amd64] https://download.docker.com/linux/debian \
       $(lsb_release -cs) \
       stable"
@@ -339,7 +339,7 @@ function install_docker {
     apt-key fingerprint 0EBFCD88
 
     # add APT repo
-    sudo add-apt-repository \
+    sudo apt-add-repository -y \
       "deb [arch=amd64] https://download.docker.com/linux/ubuntu \
       $(lsb_release -cs) \
       stable"
