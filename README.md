@@ -16,11 +16,11 @@ bash <(curl -Ss https://raw.githubusercontent.com/ForestRacks/PteroInstaller/Pro
 1) If you receive a mysql connection error, you may have run the installer multiple times – in this case, the best solution is to reinstall your operating system and run the install script again.
 2) If you encounter Let's Encrypt SSL generation errors, it could be because you're using an IP address instead of a domain or because the FQDN you're trying to generate an SSL for doesn't have an A-Record pointing to your machine IP.
 
-## Compatible operating systems:
-* Ubuntu: 18.04, 20.04, 21.04, 22.04
+## Compatible Operating Systems:
+* Ubuntu: 18.04, 20.04, 22.04, 23.04
 * CentOS: 7, 8
 * AlmaLinux: 8, 9
-* Debian: 9, 10, 11
+* Debian: 10, 11, 12
 
 ## Contributors ✨
 

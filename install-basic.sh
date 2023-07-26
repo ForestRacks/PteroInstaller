@@ -140,7 +140,7 @@ function check_os_comp {
   if [ "$OS" == "ubuntu" ]; then
     PHP_SOCKET="/run/php/php8.1-fpm.sock"
     CONFIGURE_UFW=true
-    if [ "$OS_VER_MAJOR" == "18" ] || [ "$OS_VER_MAJOR" == "20" ] || [ "$OS_VER_MAJOR" == "22" ]; then
+    if [ "$OS_VER_MAJOR" == "18" ] || [ "$OS_VER_MAJOR" == "20" ] || [ "$OS_VER_MAJOR" == "22" ] || [ "$OS_VER_MAJOR" == "23" ]; then
       SUPPORTED=true
     else
       SUPPORTED=false
@@ -148,7 +148,7 @@ function check_os_comp {
   elif [ "$OS" == "debian" ]; then
     PHP_SOCKET="/run/php/php8.1-fpm.sock"
     CONFIGURE_UFW=true
-    if [ "$OS_VER_MAJOR" == "9" ] || [ "$OS_VER_MAJOR" == "10" ] || [ "$OS_VER_MAJOR" == "11" ]; then
+    if [ "$OS_VER_MAJOR" == "9" ] || [ "$OS_VER_MAJOR" == "10" ] || [ "$OS_VER_MAJOR" == "11" ] || [ "$OS_VER_MAJOR" == "12" ]; then
       SUPPORTED=true
     else
       SUPPORTED=false
@@ -850,11 +850,7 @@ function perform_install {
     ubuntu_universedep
     apt_update
     # different dependencies depending on if it's 22, 20 or 18
-    if [ "$OS_VER_MAJOR" == "22" ]; then
-      ubuntu_dep
-    elif [ "$OS_VER_MAJOR" == "20" ]; then
-      ubuntu_dep
-    elif [ "$OS_VER_MAJOR" == "18" ]; then
+    if [ "$OS_VER_MAJOR" == "23" ] || [ "$OS_VER_MAJOR" == "22" ] || [ "$OS_VER_MAJOR" == "20" ] || [ "$OS_VER_MAJOR" == "18" ]; then
       ubuntu_dep
     else
       print_error "Unsupported version of Ubuntu."
@@ -870,7 +866,7 @@ function perform_install {
     ptdl_dl
     systemd_file
 
-    if [ "$OS_VER_MAJOR" == "18" ] || [ "$OS_VER_MAJOR" == "20" ] || [ "$OS_VER_MAJOR" == "22" ]; then
+    if [ "$OS_VER_MAJOR" == "18" ] || [ "$OS_VER_MAJOR" == "20" ] || [ "$OS_VER_MAJOR" == "22" ] || [ "$OS_VER_MAJOR" == "23" ]; then
       if [ "$CONFIGURE_LETSENCRYPT" == true ]; then
         letsencrypt
       fi
@@ -879,7 +875,7 @@ function perform_install {
     apt_update
     if [ "$OS_VER_MAJOR" == "9" ]; then
       debian_stretch_dep
-    elif [ "$OS_VER_MAJOR" == "10" ] || [ "$OS_VER_MAJOR" == "11" ]; then
+    elif [ "$OS_VER_MAJOR" == "10" ] || [ "$OS_VER_MAJOR" == "11" ] || [ "$OS_VER_MAJOR" == "12" ]; then
       debian_dep
     fi
     install_composer
@@ -892,7 +888,7 @@ function perform_install {
     ptdl_dl
     systemd_file
 
-    if [ "$OS_VER_MAJOR" == "9" ] || [ "$OS_VER_MAJOR" == "10" ] || [ "$OS_VER_MAJOR" == "11" ]; then
+    if [ "$OS_VER_MAJOR" == "9" ] || [ "$OS_VER_MAJOR" == "10" ] || [ "$OS_VER_MAJOR" == "11" ] || [ "$OS_VER_MAJOR" == "12" ]; then
       if [ "$CONFIGURE_LETSENCRYPT" == true ]; then
         letsencrypt
       fi

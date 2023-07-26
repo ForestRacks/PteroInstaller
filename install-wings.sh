@@ -131,13 +131,13 @@ function check_os_comp {
   fi
 
   if [ "$OS" == "ubuntu" ]; then
-if [ "$OS_VER_MAJOR" == "18" ] || [ "$OS_VER_MAJOR" == "20" ] || [ "$OS_VER_MAJOR" == "22" ]; then
+if [ "$OS_VER_MAJOR" == "18" ] || [ "$OS_VER_MAJOR" == "20" ] || [ "$OS_VER_MAJOR" == "22" ] || [ "$OS_VER_MAJOR" == "23" ]; then
   SUPPORTED=true
 else
   SUPPORTED=false
 fi
   elif [ "$OS" == "debian" ]; then
-    if [ "$OS_VER_MAJOR" == "9" ] || [ "$OS_VER_MAJOR" == "10" ] || [ "$OS_VER_MAJOR" == "11" ]; then
+    if [ "$OS_VER_MAJOR" == "9" ] || [ "$OS_VER_MAJOR" == "10" ] || [ "$OS_VER_MAJOR" == "11" ] || [ "$OS_VER_MAJOR" == "12" ]; then
       SUPPORTED=true
     else
       SUPPORTED=false
@@ -574,14 +574,14 @@ function main {
 
     # Available for Debian 9/10
     if [ "$OS" == "debian" ]; then
-      if [ "$OS_VER_MAJOR" == "9" ] || [ "$OS_VER_MAJOR" == "10" ] || [ "$OS_VER_MAJOR" == "11" ]; then
+      if [ "$OS_VER_MAJOR" == "9" ] || [ "$OS_VER_MAJOR" == "10" ] || [ "$OS_VER_MAJOR" == "11" ] || [ "$OS_VER_MAJOR" == "12" ]; then
         ask_letsencrypt
       fi
     fi
 
     # Available for Ubuntu 18/20/22
     if [ "$OS" == "ubuntu" ]; then
-      if [ "$OS_VER_MAJOR" == "18" ] || [ "$OS_VER_MAJOR" == "20" ] || [ "$OS_VER_MAJOR" == "22" ]; then
+      if [ "$OS_VER_MAJOR" == "18" ] || [ "$OS_VER_MAJOR" == "20" ] || [ "$OS_VER_MAJOR" == "22" ] || [ "$OS_VER_MAJOR" == "23" ]; then
         ask_letsencrypt
       fi
     fi
