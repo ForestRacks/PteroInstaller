@@ -42,10 +42,10 @@ MYSQL_USER="pterodactyl"
 MYSQL_PASSWORD="$PASSWORD"
 
 # environment
-email="admin@forestracks.com"
+email="example@forestracks.com"
 
 # Initial admin account
-user_email="admin@forestracks.com"
+user_email="example@forestracks.com"
 user_username="admin"
 user_firstname="Cool"
 user_lastname="Admin"
