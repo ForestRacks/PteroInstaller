@@ -446,7 +446,7 @@ function debian_stretch_dep {
   # MariaDB need dirmngr
   DEBIAN_FRONTEND=noninteractive apt -y install dirmngr jq
 
-  # install PHP 8.1 using sury's repo instead of PPA
+  # install PHP 8.3 using sury's repo instead of PPA
   DEBIAN_FRONTEND=noninteractive apt install -y ca-certificates apt-transport-https lsb-release
   wget -O /etc/apt/trusted.gpg.d/php.gpg https://packages.sury.org/php/apt.gpg
   echo "deb https://packages.sury.org/php/ $(lsb_release -sc) main" | tee /etc/apt/sources.list.d/php.list
@@ -475,7 +475,7 @@ function debian_dep {
   # MariaDB need dirmngr
   DEBIAN_FRONTEND=noninteractive apt -y install dirmngr
 
-  # install PHP 8.1 using sury's repo instead of default 7.2 package (in buster repo)
+  # install PHP 8.3 using sury's repo instead of default 7.2 package (in buster repo)
   DEBIAN_FRONTEND=noninteractive apt install -y ca-certificates apt-transport-https lsb-release
   wget -O /etc/apt/trusted.gpg.d/php.gpg https://packages.sury.org/php/apt.gpg
   echo "deb https://packages.sury.org/php/ $(lsb_release -sc) main" | tee /etc/apt/sources.list.d/php.list
@@ -542,7 +542,7 @@ function rhel8_dep {
 
   # add remi repo (php8.3)
   dnf install -y epel-release http://rpms.remirepo.net/enterprise/remi-release-8.rpm
-  dnf module enable -y php:remi-8.1
+  dnf module enable -y php:remi-8.3
   dnf update -y
 
   dnf install -y php php-common php-fpm php-cli php-json php-mysqlnd php-gd php-mbstring php-pdo php-zip php-bcmath php-dom php-opcache
