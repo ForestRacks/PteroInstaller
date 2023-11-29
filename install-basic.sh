@@ -138,7 +138,7 @@ function detect_distro {
 
 function check_os_comp {
   if [ "$OS" == "ubuntu" ]; then
-    PHP_SOCKET="/run/php/php8.1-fpm.sock"
+    PHP_SOCKET="/run/php/php8.3-fpm.sock"
     CONFIGURE_UFW=true
     if [ "$OS_VER_MAJOR" == "18" ] || [ "$OS_VER_MAJOR" == "20" ] || [ "$OS_VER_MAJOR" == "22" ] || [ "$OS_VER_MAJOR" == "23" ]; then
       SUPPORTED=true
@@ -146,7 +146,7 @@ function check_os_comp {
       SUPPORTED=false
     fi
   elif [ "$OS" == "debian" ]; then
-    PHP_SOCKET="/run/php/php8.1-fpm.sock"
+    PHP_SOCKET="/run/php/php8.3-fpm.sock"
     CONFIGURE_UFW=true
     if [ "$OS_VER_MAJOR" == "9" ] || [ "$OS_VER_MAJOR" == "10" ] || [ "$OS_VER_MAJOR" == "11" ] || [ "$OS_VER_MAJOR" == "12" ]; then
       SUPPORTED=true
@@ -538,7 +538,7 @@ function ubuntu_dep {
   apt-add-repository universe -y
 
   # Install Dependencies
-  DEBIAN_FRONTEND=noninteractive apt -y install php8.1 php8.1-{cli,gd,mysql,pdo,mbstring,tokenizer,bcmath,xml,fpm,curl,zip} mariadb-server nginx tar unzip git redis-server redis
+  DEBIAN_FRONTEND=noninteractive apt -y install php8.3 php8.3-{cli,gd,mysql,pdo,mbstring,tokenizer,bcmath,xml,fpm,curl,zip} mariadb-server nginx tar unzip git redis-server redis
 
   # enable services
   systemctl start mariadb
@@ -567,7 +567,7 @@ function debian_stretch_dep {
   DEBIAN_FRONTEND=noninteractive apt update -y
 
   # Install Dependencies
-  DEBIAN_FRONTEND=noninteractive apt -y install php8.1 php8.1-{cli,gd,mysql,pdo,mbstring,tokenizer,bcmath,xml,fpm,curl,zip} mariadb-server nginx curl tar unzip git redis-server
+  DEBIAN_FRONTEND=noninteractive apt -y install php8.3 php8.3-{cli,gd,mysql,pdo,mbstring,tokenizer,bcmath,xml,fpm,curl,zip} mariadb-server nginx curl tar unzip git redis-server
 
   # enable services
   systemctl start mariadb
@@ -593,7 +593,7 @@ function debian_dep {
   DEBIAN_FRONTEND=noninteractive apt update -y
 
   # install dependencies
-  DEBIAN_FRONTEND=noninteractive apt -y install php8.1 php8.1-{cli,gd,mysql,pdo,mbstring,tokenizer,bcmath,xml,fpm,curl,zip} mariadb-server nginx curl tar unzip git redis-server
+  DEBIAN_FRONTEND=noninteractive apt -y install php8.3 php8.3-{cli,gd,mysql,pdo,mbstring,tokenizer,bcmath,xml,fpm,curl,zip} mariadb-server nginx curl tar unzip git redis-server
 
   # enable services
   systemctl start mariadb
@@ -613,7 +613,7 @@ function rhel7_dep {
   # SELinux tools
   yum install -y policycoreutils policycoreutils-python selinux-policy selinux-policy-targeted libselinux-utils setroubleshoot-server setools setools-console mcstrans jq
 
-  # add remi repo (php8.1)
+  # add remi repo (php8.3)
   yum install -y epel-release http://rpms.remirepo.net/enterprise/remi-release-7.rpm
   yum install -y yum-utils
   yum-config-manager -y --disable remi-php54
@@ -649,7 +649,7 @@ function rhel8_dep {
   # SELinux tools
   dnf install -y policycoreutils selinux-policy selinux-policy-targeted setroubleshoot-server setools setools-console mcstrans jq
 
-  # add remi repo (php8.1)
+  # add remi repo (php8.3)
   dnf install -y epel-release http://rpms.remirepo.net/enterprise/remi-release-8.rpm
   dnf module enable -y php:remi-8.1
   dnf update -y
