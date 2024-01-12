@@ -131,7 +131,7 @@ function check_os_comp {
   fi
 
   if [ "$OS" == "ubuntu" ]; then
-if [ "$OS_VER_MAJOR" == "18" ] || [ "$OS_VER_MAJOR" == "20" ] || [ "$OS_VER_MAJOR" == "22" ] || [ "$OS_VER_MAJOR" == "23" ]; then
+if [ "$OS_VER_MAJOR" == "18" ] || [ "$OS_VER_MAJOR" == "20" ] || [ "$OS_VER_MAJOR" == "22" ] || [ "$OS_VER_MAJOR" == "24" ]; then
   SUPPORTED=true
 else
   SUPPORTED=false
@@ -581,7 +581,7 @@ function main {
 
     # Available for Ubuntu 18/20/22
     if [ "$OS" == "ubuntu" ]; then
-      if [ "$OS_VER_MAJOR" == "18" ] || [ "$OS_VER_MAJOR" == "20" ] || [ "$OS_VER_MAJOR" == "22" ] || [ "$OS_VER_MAJOR" == "23" ]; then
+      if [ "$OS_VER_MAJOR" == "18" ] || [ "$OS_VER_MAJOR" == "20" ] || [ "$OS_VER_MAJOR" == "22" ] || [ "$OS_VER_MAJOR" == "24" ]; then
         ask_letsencrypt
       fi
     fi

@@ -17,7 +17,7 @@ bash <(curl -Ss https://raw.githubusercontent.com/ForestRacks/PteroInstaller/Pro
 2) If you encounter Let's Encrypt SSL generation errors, it could be because you're using an IP address instead of a domain or because the FQDN you're trying to generate an SSL for doesn't have an A-Record pointing to your machine IP.
 
 ## Compatible Operating Systems:
-* Ubuntu: 18.04, 20.04, 22.04, 23.04
+* Ubuntu: 18.04, 20.04, 22.04, 24.04
 * CentOS: 7, 8
 * AlmaLinux: 8, 9
 * Debian: 10, 11, 12

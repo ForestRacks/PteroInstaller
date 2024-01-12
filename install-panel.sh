@@ -185,7 +185,7 @@ function detect_distro {
 function check_os_comp {
   if [ "$OS" == "ubuntu" ]; then
     PHP_SOCKET="/run/php/php8.3-fpm.sock"
-if [ "$OS_VER_MAJOR" == "18" ] || [ "$OS_VER_MAJOR" == "20" ] || [ "$OS_VER_MAJOR" == "22" ] || [ "$OS_VER_MAJOR" == "23" ]; then
+if [ "$OS_VER_MAJOR" == "18" ] || [ "$OS_VER_MAJOR" == "20" ] || [ "$OS_VER_MAJOR" == "22" ] || [ "$OS_VER_MAJOR" == "24" ]; then
   SUPPORTED=true
 else
   SUPPORTED=false
@@ -761,7 +761,7 @@ function perform_install {
     ubuntu_universedep
     apt_update
     # different dependencies depending on if it's 22, 20 or 18
-    if [ "$OS_VER_MAJOR" == "23" ] || [ "$OS_VER_MAJOR" == "22" ] || [ "$OS_VER_MAJOR" == "20" ] || [ "$OS_VER_MAJOR" == "18" ]; then
+    if [ "$OS_VER_MAJOR" == "24" ] || [ "$OS_VER_MAJOR" == "22" ] || [ "$OS_VER_MAJOR" == "20" ] || [ "$OS_VER_MAJOR" == "18" ]; then
       ubuntu_dep
     else
       print_error "Unsupported version of Ubuntu."
@@ -774,7 +774,7 @@ function perform_install {
     insert_cronjob
     install_pteroq
 
-    if [ "$OS_VER_MAJOR" == "18" ] || [ "$OS_VER_MAJOR" == "20" ] || [ "$OS_VER_MAJOR" == "22" ] || [ "$OS_VER_MAJOR" == "23" ]; then
+    if [ "$OS_VER_MAJOR" == "18" ] || [ "$OS_VER_MAJOR" == "20" ] || [ "$OS_VER_MAJOR" == "22" ] || [ "$OS_VER_MAJOR" == "24" ]; then
       if [ "$CONFIGURE_LETSENCRYPT" == true ]; then
         letsencrypt
       fi
@@ -941,7 +941,7 @@ function main {
 
     # Available for Ubuntu 18/20
     if [ "$OS" == "ubuntu" ]; then
-      if [ "$OS_VER_MAJOR" == "18" ] || [ "$OS_VER_MAJOR" == "20" ] || [ "$OS_VER_MAJOR" == "22" ] || [ "$OS_VER_MAJOR" == "23" ]; then
+      if [ "$OS_VER_MAJOR" == "18" ] || [ "$OS_VER_MAJOR" == "20" ] || [ "$OS_VER_MAJOR" == "22" ] || [ "$OS_VER_MAJOR" == "24" ]; then
         ask_letsencrypt
       fi
     fi
