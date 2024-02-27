@@ -465,8 +465,8 @@ function systemd_file {
 }
 
 function create_database {
-  if [ "$OS" == "centos" || "$OS" == "almalinux" ]; then
-    # secure MariaDB
+  if [ "$OS" == "centos" ] || [ "$OS" == "almalinux" ]; then
+    # Secure MariaDB
     echo "* MariaDB secure installation. The following are safe defaults."
     echo "* Set root password? [Y/n] Y"
     echo "* Remove anonymous users? [Y/n] Y"
