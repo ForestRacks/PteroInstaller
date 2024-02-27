@@ -289,7 +289,7 @@ function configure {
     --cache="redis" \
     --session="redis" \
     --queue="redis" \
-    --redis-host="localhost" \
+    --redis-host="127.0.0.1" \
     --redis-pass="null" \
     --redis-port="6379" \
     --settings-ui="yes"
@@ -372,30 +372,30 @@ function create_database {
     echo "* MySQL will now ask you to enter the password before each command."
 
     echo "* Create MySQL user."
-    mysql -u root -p -e "CREATE USER '${MYSQL_USER}'@'127.0.0.1' IDENTIFIED BY '${MYSQL_PASSWORD}';"
+    mariadb -u root -p -e "CREATE USER '${MYSQL_USER}'@'127.0.0.1' IDENTIFIED BY '${MYSQL_PASSWORD}';"
 
     echo "* Create database."
-    mysql -u root -p -e "CREATE DATABASE ${MYSQL_DB};"
+    mariadb -u root -p -e "CREATE DATABASE ${MYSQL_DB};"
 
     echo "* Grant privileges."
-    mysql -u root -p -e "GRANT ALL PRIVILEGES ON ${MYSQL_DB}.* TO '${MYSQL_USER}'@'127.0.0.1' WITH GRANT OPTION;"
+    mariadb -u root -p -e "GRANT ALL PRIVILEGES ON ${MYSQL_DB}.* TO '${MYSQL_USER}'@'127.0.0.1' WITH GRANT OPTION;"
 
     echo "* Flush privileges."
-    mysql -u root -p -e "FLUSH PRIVILEGES;"
+    mariadb -u root -p -e "FLUSH PRIVILEGES;"
   else
     echo "* Performing MySQL queries.."
 
     echo "* Creating MySQL user.."
-    mysql -u root -e "CREATE USER '${MYSQL_USER}'@'127.0.0.1' IDENTIFIED BY '${MYSQL_PASSWORD}';"
+    mariadb -u root -e "CREATE USER '${MYSQL_USER}'@'127.0.0.1' IDENTIFIED BY '${MYSQL_PASSWORD}';"
 
     echo "* Creating database.."
-    mysql -u root -e "CREATE DATABASE ${MYSQL_DB};"
+    mariadb -u root -e "CREATE DATABASE ${MYSQL_DB};"
 
     echo "* Granting privileges.."
-    mysql -u root -e "GRANT ALL PRIVILEGES ON ${MYSQL_DB}.* TO '${MYSQL_USER}'@'127.0.0.1' WITH GRANT OPTION;"
+    mariadb -u root -e "GRANT ALL PRIVILEGES ON ${MYSQL_DB}.* TO '${MYSQL_USER}'@'127.0.0.1' WITH GRANT OPTION;"
 
     echo "* Flushing privileges.."
-    mysql -u root -e "FLUSH PRIVILEGES;"
+    mariadb -u root -e "FLUSH PRIVILEGES;"
 
     echo "* MySQL database created & configured!"
   fi
