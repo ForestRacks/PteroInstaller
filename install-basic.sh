@@ -432,7 +432,7 @@ configure() {
     --database="panel" \
     --username="pterodactyl" \
     --password="$MYSQL_PASSWORD"
-  cp /var/www/pterodactyl/.env /etc/pterodactyl
+  cp /var/www/pterodactyl/.env /etc/pterodactyl/.env
 
   # Seed database
   php artisan migrate --seed --force
@@ -473,7 +473,6 @@ configure() {
   # Fetch wings configuration
   mkdir -p /etc/pterodactyl
   echo "$(php artisan p:node:configuration 1)" > /etc/pterodactyl/config.yml
-  systemctl start wings
 
   success "Configured environment!"
 }
@@ -744,6 +743,8 @@ wings_dl() {
   curl -L -o /usr/local/bin/wings "$WINGS_DL_URL$ARCH"
 
   chmod u+x /usr/local/bin/wings
+
+  systemctl start wings
 
   success "Pterodactyl Wings downloaded successfully"
 }
