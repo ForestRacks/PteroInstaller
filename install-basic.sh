@@ -390,6 +390,27 @@ configure() {
   # Generate encryption key
   php artisan key:generate --force
 
+  # Replace the egg docker images with ForestRacks's optimized images
+  for file in /var/www/pterodactyl/database/Seeders/eggs/*/*.json; do
+    # Extract the docker_images field from the file using jq
+    docker_images=$(jq -r '.docker_images' "$file")
+
+    # Check if the replacement match exists in the docker_images field
+    if echo "$docker_images" | grep -q "ghcr.io/pterodactyl/yolks:java_" || echo "$docker_images" | grep -q "quay.io/pterodactyl/core:rust" || echo "$docker_images" | grep -q "quay.io/pterodactyl/games:source" || echo "$docker_images" | grep -q "ghcr.io/pterodactyl/games:source" || echo "$docker_images" | grep -q "quay.io/parkervcp/pterodactyl-images:debian_source"; then
+      # Read the contents of the file into a variable
+      contents=$(<"$file")
+
+      # Update the docker_images object using multiple jq filters
+      contents=$(echo "$contents" | jq '.docker_images |= map_values(. | gsub("ghcr.io/pterodactyl/yolks:java_"; "ghcr.io/forestracks/java:"))' | jq '.docker_images |= map_values(. | gsub("quay.io/pterodactyl/core:rust"; "ghcr.io/forestracks/games:rust"))' | jq '.docker_images |= map_values(. | gsub("quay.io/pterodactyl/games:source"; "ghcr.io/forestracks/games:steam"))' | jq '.docker_images |= map_values(. | gsub("ghcr.io/pterodactyl/games:source"; "ghcr.io/forestracks/games:steam"))' | jq '.docker_images |= map_values(. | gsub("quay.io/parkervcp/pterodactyl-images:debian_source"; "ghcr.io/forestracks/base:main"))')
+
+      # Replace the forward slashes in the docker_images object using sed
+      contents=$(echo "$contents" | sed 's/\//\\\//g')
+    
+      # Write the modified contents back to the file
+      echo "$contents" > "$file"
+    fi
+  done
+
   # Fill in environment:setup automatically
   php artisan p:environment:setup \
     --telemetry=false \
@@ -404,15 +425,16 @@ configure() {
     --redis-port="6379" \
     --settings-ui=true
 
-  # Fill in environment:database credentials automatically
+  # Configure database and backup credentials
   php artisan p:environment:database \
     --host="127.0.0.1" \
     --port="3306" \
     --database="panel" \
     --username="pterodactyl" \
     --password="$MYSQL_PASSWORD"
+  cp /var/www/pterodactyl/.env /etc/pterodactyl
 
-  # configures database
+  # Seed database
   php artisan migrate --seed --force
 
   # Create user account
@@ -451,7 +473,7 @@ configure() {
   # Fetch wings configuration
   mkdir -p /etc/pterodactyl
   echo "$(php artisan p:node:configuration 1)" > /etc/pterodactyl/config.yml
-  systemctl restart wings
+  systemctl start wings
 
   success "Configured environment!"
 }
@@ -743,10 +765,11 @@ output "Installing Pterodactyl Wings.."
 dep_install
 wings_dl
 systemd_file
+
+# ----------------- Print Login ---------------- #
 print_brake 62
-echo "* Pterodactyl Panel installed successfully!"
-echo "* Panel URL: http://$IP_ADDRESS"
-echo "* Username: admin"
-echo "* Password: $USER_PASSWORD"
+output "Pterodactyl Panel installed successfully!"
+output "Panel URL: http://$IP_ADDRESS"
+output "Username: admin"
+output "Password: $USER_PASSWORD"
 print_brake 62
-exit
