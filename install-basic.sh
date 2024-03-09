@@ -744,8 +744,6 @@ wings_dl() {
 
   chmod u+x /usr/local/bin/wings
 
-  systemctl start wings
-
   success "Pterodactyl Wings downloaded successfully"
 }
 
@@ -755,6 +753,9 @@ systemd_file() {
   curl -o /etc/systemd/system/wings.service "$CONFIGS_URL"/wings.service
   systemctl daemon-reload
   systemctl enable wings
+
+  sleep 3
+  systemctl start wings
 
   success "Installed systemd service!"
 }
