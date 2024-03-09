@@ -31,6 +31,17 @@ if ! [ -x "$(command -v curl)" ]; then
   fi
 fi
 
+# Check for existing installation
+if [ -d "/var/www/pterodactyl" ]; then
+  print_warning "The script has detected that you already have Pterodactyl panel on your system! You cannot run the script multiple times, it will fail!"
+  echo -e -n "* Are you sure you want to proceed? (y/N): "
+  read -r CONFIRM_PROCEED
+  if [[ ! "$CONFIRM_PROCEED" =~ [Yy] ]]; then
+    print_error "Installation aborted!"
+    exit 1
+  fi
+fi
+
 output() {
   echo "* ${1}"
 }
