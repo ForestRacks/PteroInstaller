@@ -1,92 +1,54 @@
 #!/bin/bash
 
-set -e
-
 # Pterodactyl Installer 
 # Copyright Forestracks 2022-2024
 
-# exit with error status code if user is not root
-if [[ $EUID -ne 0 ]]; then
-  echo "* This script must be executed with root privileges (sudo)." 1>&2
-  exit 1
-fi
+# ------------------ Variables ----------------- #
+# Path (export everything that is possible, doesn't matter that it exists already)
+export PATH="$PATH:/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin:/usr/local/sbin"
 
-# check for curl
-if ! [ -x "$(command -v curl)" ]; then
-  echo "* curl is required in order for this script to work."
-  echo "* install using apt (Debian and derivatives) or yum/dnf (CentOS)"
-  exit 1
-fi
+# Operating System
+export OS=""
+export OS_VER_MAJOR=""
+export CPU_ARCHITECTURE=""
+export ARCH=""
+export SUPPORTED=false
 
-# define version using information from GitHub
-get_latest_release() {
-  curl --silent "https://api.github.com/repos/$1/releases/latest" | # Get latest release from GitHub api
-  grep '"tag_name":' |                                              # Get tag line
-  sed -E 's/.*"([^"]+)".*/\1/'                                      # Pluck JSON value
+# Download URLs
+export PANEL_DL_URL="https://github.com/pterodactyl/panel/releases/latest/download/panel.tar.gz"
+export WINGS_DL_URL="https://github.com/pterodactyl/wings/releases/latest/download/wings_linux_"
+export CONFIGS_URL="https://raw.githubusercontent.com/ForestRacks/PteroInstaller/master/configs"
+
+# Colors
+COLOR_YELLOW='\033[1;33m'
+COLOR_GREEN='\033[0;32m'
+COLOR_RED='\033[0;31m'
+COLOR_NC='\033[0m'
+
+# -------------- Visual functions -------------- #
+output() {
+  echo -e "* $1"
 }
 
-echo "* Retrieving release information.."
-PTERODACTYL_VERSION="$(get_latest_release "pterodactyl/panel")"
-echo "* Latest version is $PTERODACTYL_VERSION"
-
-# Generate password
-PASSWORD=$(openssl rand -base64 12)
-
-# variables
-WEBSERVER="nginx"
-FQDN="$(hostname -I | awk '{print $1}')"
-
-# default MySQL credentials
-MYSQL_DB="panel"
-MYSQL_USER="pterodactyl"
-MYSQL_PASSWORD="$PASSWORD"
-
-# environment
-email="example@forestracks.com"
-
-# Initial admin account
-user_email="example@forestracks.com"
-user_username="admin"
-user_firstname="Cool"
-user_lastname="Admin"
-user_password="$PASSWORD"
-
-# download URLs
-PANEL_DL_URL="https://github.com/pterodactyl/panel/releases/latest/download/panel.tar.gz"
-DL_URL="https://github.com/pterodactyl/wings/releases/latest/download/wings_linux_amd64"
-CONFIGS_URL="https://raw.githubusercontent.com/ForestRacks/PteroInstaller/master/configs"
-
-# apt sources path
-SOURCES_PATH="/etc/apt/sources.list"
-
-# ufw firewall
-CONFIGURE_UFW=false
-
-# firewall_cmd
-CONFIGURE_FIREWALL_CMD=false
-
-# firewall status
-CONFIGURE_FIREWALL=false
-
-# visual functions
-function print_error {
-  COLOR_RED='\033[0;31m'
-  COLOR_NC='\033[0m'
-
+success() {
   echo ""
-  echo -e "* ${COLOR_RED}ERROR${COLOR_NC}: $1"
+  output "${COLOR_GREEN}SUCCESS${COLOR_NC}: $1"
   echo ""
 }
 
-function print_warning {
-  COLOR_YELLOW='\033[1;33m'
-  COLOR_NC='\033[0m'
+error() {
   echo ""
-  echo -e "* ${COLOR_YELLOW}WARNING${COLOR_NC}: $1"
+  echo -e "* ${COLOR_RED}ERROR${COLOR_NC}: $1" 1>&2
   echo ""
 }
 
-function print_brake {
+warning() {
+  echo ""
+  output "${COLOR_YELLOW}WARNING${COLOR_NC}: $1"
+  echo ""
+}
+
+print_brake() {
   for ((n=0;n<$1;n++));
     do
       echo -n "#"
@@ -94,111 +56,312 @@ function print_brake {
     echo ""
 }
 
-hyperlink() {
-  echo -e "\e]8;;${1}\a${1}\e]8;;\a"
+# -------------------- MYSQL ------------------- #
+create_db_user() {
+  local db_user_name="$1"
+  local db_user_password="$2"
+  local db_host="${3:-127.0.0.1}"
+
+  output "Creating database user $db_user_name..."
+
+  mariadb -u root -e "CREATE USER '$db_user_name'@'$db_host' IDENTIFIED BY '$db_user_password';"
+  mariadb -u root -e "FLUSH PRIVILEGES;"
+
+  output "Database user $db_user_name created"
 }
 
-# other functions
-function detect_distro {
-  if [ -f /etc/os-release ]; then
-    # freedesktop.org and systemd
-    . /etc/os-release
-    OS=$(echo "$ID" | awk '{print tolower($0)}')
-    OS_VER=$VERSION_ID
-  elif type lsb_release >/dev/null 2>&1; then
-    # linuxbase.org
-    OS=$(lsb_release -si | awk '{print tolower($0)}')
-    OS_VER=$(lsb_release -sr)
-  elif [ -f /etc/lsb-release ]; then
-    # For some versions of Debian/Ubuntu without lsb_release command
-    . /etc/lsb-release
-    OS=$(echo "$DISTRIB_ID" | awk '{print tolower($0)}')
-    OS_VER=$DISTRIB_RELEASE
-  elif [ -f /etc/debian_version ]; then
-    # Older Debian/Ubuntu/etc.
-    OS="debian"
-    OS_VER=$(cat /etc/debian_version)
-  elif [ -f /etc/SuSe-release ]; then
-    # Older SuSE/etc.
-    OS="SuSE"
-    OS_VER="?"
-  elif [ -f /etc/redhat-release ]; then
-    # Older Red Hat, CentOS, etc.
-    OS="Red Hat/CentOS"
-    OS_VER="?"
-  else
-    # Fall back to uname, e.g. "Linux <version>", also works for BSD, etc.
-    OS=$(uname -s)
-    OS_VER=$(uname -r)
-  fi
+grant_all_privileges() {
+  local db_name="$1"
+  local db_user_name="$2"
+  local db_host="${3:-127.0.0.1}"
 
-  OS=$(echo "$OS" | awk '{print tolower($0)}')
-  OS_VER_MAJOR=$(echo "$OS_VER" | cut -d. -f1)
+  output "Granting all privileges on $db_name to $db_user_name..."
+
+  mariadb -u root -e "GRANT ALL PRIVILEGES ON $db_name.* TO '$db_user_name'@'$db_host' WITH GRANT OPTION;"
+  mariadb -u root -e "FLUSH PRIVILEGES;"
+
+  output "Privileges granted"
+
 }
 
-function check_os_comp {
-  if [ "$OS" == "ubuntu" ]; then
-    PHP_SOCKET="/run/php/php8.3-fpm.sock"
-    CONFIGURE_UFW=true
-    if [ "$OS_VER_MAJOR" == "18" ] || [ "$OS_VER_MAJOR" == "20" ] || [ "$OS_VER_MAJOR" == "22" ] || [ "$OS_VER_MAJOR" == "24" ]; then
-      SUPPORTED=true
-    else
-      SUPPORTED=false
-    fi
-  elif [ "$OS" == "debian" ]; then
-    PHP_SOCKET="/run/php/php8.3-fpm.sock"
-    CONFIGURE_UFW=true
-    if [ "$OS_VER_MAJOR" == "9" ] || [ "$OS_VER_MAJOR" == "10" ] || [ "$OS_VER_MAJOR" == "11" ] || [ "$OS_VER_MAJOR" == "12" ]; then
-      SUPPORTED=true
-    else
-      SUPPORTED=false
-    fi
-  elif [ "$OS" == "centos" ]; then
-    PHP_SOCKET="/var/run/php-fpm/pterodactyl.sock"
-    CONFIGURE_FIREWALL=true
-    if [ "$OS_VER_MAJOR" == "7" ]; then
-      SUPPORTED=true
-    elif [ "$OS_VER_MAJOR" == "8" ]; then
-      SUPPORTED=true
-    else
-      SUPPORTED=false
-    fi
-  elif [ "$OS" == "almalinux" ]; then
-    PHP_SOCKET="/var/run/php-fpm/pterodactyl.sock"
-    CONFIGURE_FIREWALL=true
-    if [ "$OS_VER_MAJOR" == "8" ]; then
-      SUPPORTED=true
-    elif [ "$OS_VER_MAJOR" == "9" ]; then
-      SUPPORTED=true
-    else
-      SUPPORTED=false
-    fi
-  else
-    SUPPORTED=false
+create_db() {
+  local db_name="$1"
+  local db_user_name="$2"
+  local db_host="${3:-127.0.0.1}"
+
+  output "Creating database $db_name..."
+
+  mariadb -u root -e "CREATE DATABASE $db_name;"
+  grant_all_privileges "$db_name" "$db_user_name" "$db_host"
+
+  output "Database $db_name created"
+}
+
+# --------------- Package Manager -------------- #
+# Argument for quite mode
+update_repos() {
+  local args=""
+  [[ $1 == true ]] && args="-qq"
+  case "$OS" in
+  ubuntu | debian)
+    apt-get -y $args update
+    ;;
+  *)
+    # Do nothing as AlmaLinux and RockyLinux update metadata before installing packages.
+    ;;
+  esac
+}
+
+# First argument list of packages to install, second argument for quite mode
+install_packages() {
+  local args=""
+  if [[ $2 == true ]]; then
+    case "$OS" in
+    ubuntu | debian) args="-qq" ;;
+    *) args="-q" ;;
+    esac
   fi
 
-  # exit if not supported
-  if [ "$SUPPORTED" == true ]; then
-    echo "* $OS $OS_VER is supported."
-  else
-    echo "* $OS $OS_VER is not supported"
-    print_error "Unsupported OS"
+  # Eval needed for proper expansion of arguments
+  case "$OS" in
+  ubuntu | debian)
+    eval apt-get -y $args install "$1"
+    ;;
+  rocky | almalinux)
+    eval dnf -y $args install "$1"
+    ;;
+  esac
+}
+
+# ------------------ Firewall ------------------ #
+ask_firewall() {
+  local __resultvar=$1
+
+  case "$OS" in
+  ubuntu | debian)
+    echo -e -n "* Do you want to automatically configure UFW (firewall)? (y/N): "
+    read -r CONFIRM_UFW
+
+    if [[ "$CONFIRM_UFW" =~ [Yy] ]]; then
+      eval "$__resultvar="'true'""
+    fi
+    ;;
+  rocky | almalinux)
+    echo -e -n "* Do you want to automatically configure firewall-cmd (firewall)? (y/N): "
+    read -r CONFIRM_FIREWALL_CMD
+
+    if [[ "$CONFIRM_FIREWALL_CMD" =~ [Yy] ]]; then
+      eval "$__resultvar="'true'""
+    fi
+    ;;
+  esac
+}
+
+install_firewall() {
+  case "$OS" in
+  ubuntu | debian)
+    output ""
+    output "Installing Uncomplicated Firewall (UFW)"
+
+    if ! [ -x "$(command -v ufw)" ]; then
+      update_repos true
+      install_packages "ufw" true
+    fi
+
+    ufw --force enable
+
+    success "Enabled Uncomplicated Firewall (UFW)"
+
+    ;;
+  rocky | almalinux)
+
+    output ""
+    output "Installing FirewallD"+
+
+    if ! [ -x "$(command -v firewall-cmd)" ]; then
+      install_packages "firewalld" true
+    fi
+
+    systemctl --now enable firewalld >/dev/null
+
+    success "Enabled FirewallD"
+
+    ;;
+  esac
+}
+
+firewall_ports() {
+  case "$OS" in
+  ubuntu | debian)
+    for port in $1; do
+      ufw allow "$port"
+    done
+    ufw --force reload
+    ;;
+  rocky | almalinux)
+    for port in $1; do
+      firewall-cmd --zone=public --add-port="$port"/tcp --permanent
+    done
+    firewall-cmd --reload -q
+    ;;
+  esac
+}
+
+# ---------------- System checks --------------- #
+# Panel x86_64 check
+check_os_x86_64() {
+  if [ "${ARCH}" != "amd64" ]; then
+    warning "Detected CPU architecture $CPU_ARCHITECTURE"
+    warning "Using any other architecture than 64 bit (x86_64) will cause problems."
+
+    echo -e -n "* Are you sure you want to proceed? (y/N):"
+    read -r choice
+
+    if [[ ! "$choice" =~ [Yy] ]]; then
+      error "Installation aborted!"
+      exit 1
+    fi
+  fi
+}
+
+# Wings virtualization check
+check_virt() {
+  output "Installing virt-what..."
+
+  update_repos true
+  install_packages "virt-what" true
+
+  # Export sbin for virt-what
+  export PATH="$PATH:/sbin:/usr/sbin"
+
+  virt_serv=$(virt-what)
+
+  case "$virt_serv" in
+  *openvz* | *lxc*)
+    warning "Unsupported type of virtualization detected. Please consult with your hosting provider whether your server can run Docker or not. Proceed at your own risk."
+    echo -e -n "* Are you sure you want to proceed? (y/N): "
+    read -r CONFIRM_PROCEED
+    if [[ ! "$CONFIRM_PROCEED" =~ [Yy] ]]; then
+      error "Installation aborted!"
+      exit 1
+    fi
+    ;;
+  *)
+    [ "$virt_serv" != "" ] && warning "Virtualization: $virt_serv detected."
+    ;;
+  esac
+
+  if uname -r | grep -q "xxxx"; then
+    error "Unsupported kernel detected."
     exit 1
   fi
+
+  success "System is compatible with docker"
 }
 
-#################################
-## main installation functions ##
-#################################
+# Exit with error status code if user is not root
+if [[ $EUID -ne 0 ]]; then
+  error "This script must be executed with root privileges."
+  exit 1
+fi
 
-function install_composer {
-  echo "* Installing composer.."
+# Detect OS
+if [ -f /etc/os-release ]; then
+  # freedesktop.org and systemd
+  . /etc/os-release
+  OS=$(echo "$ID" | awk '{print tolower($0)}')
+  OS_VER=$VERSION_ID
+elif type lsb_release >/dev/null 2>&1; then
+  # linuxbase.org
+  OS=$(lsb_release -si | awk '{print tolower($0)}')
+  OS_VER=$(lsb_release -sr)
+elif [ -f /etc/lsb-release ]; then
+  # For some versions of Debian/Ubuntu without lsb_release command
+  . /etc/lsb-release
+  OS=$(echo "$DISTRIB_ID" | awk '{print tolower($0)}')
+  OS_VER=$DISTRIB_RELEASE
+elif [ -f /etc/debian_version ]; then
+  # Older Debian/Ubuntu/etc.
+  OS="debian"
+  OS_VER=$(cat /etc/debian_version)
+elif [ -f /etc/SuSe-release ]; then
+  # Older SuSE/etc.
+  OS="SuSE"
+  OS_VER="?"
+elif [ -f /etc/redhat-release ]; then
+  # Older Red Hat, CentOS, etc.
+  OS="Red Hat/CentOS"
+  OS_VER="?"
+else
+  # Fall back to uname, e.g. "Linux <version>", also works for BSD, etc.
+  OS=$(uname -s)
+  OS_VER=$(uname -r)
+fi
+
+OS=$(echo "$OS" | awk '{print tolower($0)}')
+OS_VER_MAJOR=$(echo "$OS_VER" | cut -d. -f1)
+CPU_ARCHITECTURE=$(uname -m)
+
+case "$CPU_ARCHITECTURE" in
+x86_64)
+  ARCH=amd64
+  ;;
+arm64 | aarch64)
+  ARCH=arm64
+  ;;
+*)
+  error "Only x86_64 and arm64 are supported!"
+  exit 1
+  ;;
+esac
+
+case "$OS" in
+ubuntu)
+  [ "$OS_VER_MAJOR" == "20" ] && SUPPORTED=true
+  [ "$OS_VER_MAJOR" == "22" ] && SUPPORTED=true
+  [ "$OS_VER_MAJOR" == "24" ] && SUPPORTED=true
+  export DEBIAN_FRONTEND=noninteractive
+  ;;
+debian)
+  [ "$OS_VER_MAJOR" == "11" ] && SUPPORTED=true
+  [ "$OS_VER_MAJOR" == "12" ] && SUPPORTED=true
+  [ "$OS_VER_MAJOR" == "13" ] && SUPPORTED=true
+  export DEBIAN_FRONTEND=noninteractive
+  ;;
+rocky | almalinux)
+  [ "$OS_VER_MAJOR" == "8" ] && SUPPORTED=true
+  [ "$OS_VER_MAJOR" == "9" ] && SUPPORTED=true
+  ;;
+*)
+  SUPPORTED=false
+  ;;
+esac
+
+# Exit if OS not supported
+if [ "$SUPPORTED" == false ]; then
+  output "$OS $OS_VER is not supported"
+  error "Unsupported operating system"
+  exit 1
+fi
+
+
+# ------------------ Variables ----------------- #
+# Domain name / IP
+IP_ADDRESS="$(hostname -I | awk '{print $1}')"
+
+# Default User credentials
+MYSQL_PASSWORD=$(head -c 100 /dev/urandom | LC_ALL=C tr -dc 'A-Za-z0-9!"#%&()*+,-./:;<=>?@[\]^_`{|}~' | fold -w 32 | head -n 1)
+USER_PASSWORD=$(head -c 100 /dev/urandom | LC_ALL=C tr -dc 'A-Za-z0-9' | fold -w 32 | head -n 1)
+
+# --------- Main installation functions -------- #
+install_composer() {
+  output "Installing composer.."
   curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
-  echo "* Composer installed!"
+  success "Composer installed!"
 }
 
-function panel_ptdl_dl {
-  echo "* Downloading pterodactyl panel files .. "
+panel_dl() {
+  output "Downloading pterodactyl panel files .. "
   mkdir -p /var/www/pterodactyl
   cd /var/www/pterodactyl || exit
 
@@ -207,57 +370,46 @@ function panel_ptdl_dl {
   chmod -R 755 storage/* bootstrap/cache/
 
   cp .env.example .env
-  composer install --no-dev --optimize-autoloader --quiet --no-interaction
 
-  php artisan key:generate --force
-
-  # Replace the egg docker images with ForestRacks's optimized images
-  for file in /var/www/pterodactyl/database/Seeders/eggs/*/*.json; do
-    # Extract the docker_images field from the file using jq
-    docker_images=$(jq -r '.docker_images' "$file")
-
-    # Check if the replacement match exists in the docker_images field
-    if echo "$docker_images" | grep -q "ghcr.io/pterodactyl/yolks:java_" || echo "$docker_images" | grep -q "quay.io/pterodactyl/core:rust" || echo "$docker_images" | grep -q "quay.io/pterodactyl/games:source" || echo "$docker_images" | grep -q "ghcr.io/pterodactyl/games:source" || echo "$docker_images" | grep -q "quay.io/parkervcp/pterodactyl-images:debian_source"; then
-      # Read the contents of the file into a variable
-      contents=$(<"$file")
-
-      # Update the docker_images object using multiple jq filters
-      contents=$(echo "$contents" | jq '.docker_images |= map_values(. | gsub("ghcr.io/pterodactyl/yolks:java_"; "ghcr.io/forestracks/java:"))' | jq '.docker_images |= map_values(. | gsub("quay.io/pterodactyl/core:rust"; "ghcr.io/forestracks/games:rust"))' | jq '.docker_images |= map_values(. | gsub("quay.io/pterodactyl/games:source"; "ghcr.io/forestracks/games:steam"))' | jq '.docker_images |= map_values(. | gsub("ghcr.io/pterodactyl/games:source"; "ghcr.io/forestracks/games:steam"))' | jq '.docker_images |= map_values(. | gsub("quay.io/parkervcp/pterodactyl-images:debian_source"; "ghcr.io/forestracks/base:main"))')
-
-      # Replace the forward slashes in the docker_images object using sed
-      contents=$(echo "$contents" | sed 's/\//\\\//g')
-    
-      # Write the modified contents back to the file
-      echo "$contents" > "$file"
-    fi
-  done
-
-  echo "* Downloaded pterodactyl panel files & installed composer dependencies!"
+  success "Downloaded Pterodactyl panel files!"
 }
 
-function configure {
-  app_url=http://$FQDN
+install_composer_deps() {
+  output "Installing composer dependencies.."
+  [ "$OS" == "rocky" ] || [ "$OS" == "almalinux" ] && export PATH=/usr/local/bin:$PATH
+  COMPOSER_ALLOW_SUPERUSER=1 composer install --no-dev --optimize-autoloader
+  success "Installed composer dependencies!"
+}
+
+# Configure environment
+configure() {
+  output "Configuring environment.."
+
+  local app_url="http://$IP_ADDRESS"
+
+  # Generate encryption key
+  php artisan key:generate --force
 
   # Fill in environment:setup automatically
   php artisan p:environment:setup \
     --telemetry=false \
-    --author="$email" \
+    --author="admin@example.com" \
     --url="$app_url" \
-    --timezone="$timezone" \
+    --timezone="America/Chicago" \
     --cache="redis" \
     --session="redis" \
     --queue="redis" \
     --redis-host="127.0.0.1" \
     --redis-pass="null" \
     --redis-port="6379" \
-    --settings-ui="yes"
+    --settings-ui=true
 
   # Fill in environment:database credentials automatically
   php artisan p:environment:database \
     --host="127.0.0.1" \
     --port="3306" \
-    --database="$MYSQL_DB" \
-    --username="$MYSQL_USER" \
+    --database="panel" \
+    --username="pterodactyl" \
     --password="$MYSQL_PASSWORD"
 
   # configures database
@@ -265,11 +417,11 @@ function configure {
 
   # Create user account
   php artisan p:user:make \
-    --email="$user_email" \
-    --username="$user_username" \
-    --name-first="$user_firstname" \
-    --name-last="$user_lastname" \
-    --password="$user_password" \
+    --email="admin@example.com" \
+    --username="admin" \
+    --name-first="Admin" \
+    --name-last="User" \
+    --password="$USER_PASSWORD" \
     --admin=1
 
   # Create a server location
@@ -281,7 +433,7 @@ function configure {
   php artisan p:node:make \
     --name="Node01" \
     --description="First Node" \
-    --fqdn=$FQDN \
+    --fqdn=$IP_ADDRESS \
     --public=1 \
     --locationId=1 \
     --scheme="http" \
@@ -299,688 +451,302 @@ function configure {
   # Fetch wings configuration
   mkdir -p /etc/pterodactyl
   echo "$(php artisan p:node:configuration 1)" > /etc/pterodactyl/config.yml
+  systemctl restart wings
 
-  # set folder permissions now
-  set_folder_permissions
+  success "Configured environment!"
 }
 
-# set the correct folder permissions depending on OS and webserver
-function set_folder_permissions {
-  # if os is ubuntu or debian, we do this
-  if [ "$OS" == "debian" ] || [ "$OS" == "ubuntu" ]; then
+# Set proper directory permissions for distro
+set_folder_permissions() {
+  # Assign directory user
+  case "$OS" in
+  debian | ubuntu)
     chown -R www-data:www-data ./*
-  elif [ "$OS" == "centos" ] && [ "$WEBSERVER" == "nginx" ] || [ "$OS" == "almalinux" ] && [ "$WEBSERVER" == "nginx" ]; then
+    ;;
+  rocky | almalinux)
     chown -R nginx:nginx ./*
-  else
-    print_error "Invalid webserver and OS setup."
-    exit 1
-  fi
+    ;;
+  esac
 }
 
-# insert cronjob
-function insert_cronjob {
-  echo "* Installing cronjob.. "
+insert_cronjob() {
+  output "Installing cronjob.. "
 
-  crontab -l | { cat; echo "* * * * * php /var/www/pterodactyl/artisan schedule:run >> /dev/null 2>&1"; } | crontab -
+  crontab -l | {
+    cat
+    output "* * * * php /var/www/pterodactyl/artisan schedule:run >> /dev/null 2>&1"
+  } | crontab -
 
-  echo "* Cronjob installed!"
+  success "Cronjob installed!"
 }
 
-function ptdl_dl {
-  echo "* Installing Pterodactyl Wings .. "
+install_pteroq() {
+  output "Installing pteroq service.."
 
-  mkdir -p /etc/pterodactyl
-  curl -L -o /usr/local/bin/wings "$DL_URL"
+  curl -o /etc/systemd/system/pteroq.service "$CONFIGS_URL"/pteroq.service
 
-  chmod u+x /usr/local/bin/wings
+  case "$OS" in
+  debian | ubuntu)
+    sed -i -e "s@<user>@www-data@g" /etc/systemd/system/pteroq.service
+    ;;
+  rocky | almalinux)
+    sed -i -e "s@<user>@nginx@g" /etc/systemd/system/pteroq.service
+    ;;
+  esac
 
-  echo "* Done."
-}
-
-function install_pteroq {
-  echo "* Installing pteroq service.."
-
-  curl -o /etc/systemd/system/pteroq.service $CONFIGS_URL/pteroq.service
   systemctl enable pteroq.service
   systemctl start pteroq
 
-  echo "* Installed pteroq!"
+  success "Installed pteroq!"
 }
 
-function install_docker {
-  echo "* Installing docker .."
-  if [ "$OS" == "debian" ]; then
-    # install dependencies for Docker
-    DEBIAN_FRONTEND=noninteractive apt update -y 
-    DEBIAN_FRONTEND=noninteractive apt -y install \
-     apt-transport-https \
-     ca-certificates \
-     curl \
-     gnupg2 \
-     software-properties-common
-
-    # get their GPG key
-    curl -fsSL https://download.docker.com/linux/debian/gpg | apt-key add -
-
-    # show fingerprint to user
-    apt-key fingerprint 0EBFCD88
-
-    # add APT repo
-    apt-add-repository -y \
-      "deb [arch=amd64] https://download.docker.com/linux/debian \
-      $(lsb_release -cs) \
-      stable"
-
-    # install docker
-    DEBIAN_FRONTEND=noninteractive apt update
-    DEBIAN_FRONTEND=noninteractive apt -y install docker-ce docker-ce-cli containerd.io
-
-    # make sure it's enabled & running
-    systemctl start docker
-    systemctl enable docker
-
-  elif [ "$OS" == "ubuntu" ]; then
-    # install dependencies for Docker
-    DEBIAN_FRONTEND=noninteractive apt update
-    DEBIAN_FRONTEND=noninteractive apt -y install \
-      apt-transport-https \
-      ca-certificates \
-      curl \
-      software-properties-common
-
-    # get their GPG key
-    curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
-
-    # show fingerprint to user
-    apt-key fingerprint 0EBFCD88
-
-    # add APT repo
-    sudo apt-add-repository -y \
-      "deb [arch=amd64] https://download.docker.com/linux/ubuntu \
-      $(lsb_release -cs) \
-      stable"
-
-    # install docker
-    DEBIAN_FRONTEND=noninteractive apt update
-    DEBIAN_FRONTEND=noninteractive apt -y install docker-ce docker-ce-cli containerd.io
-
-    # make sure it's enabled & running
-    systemctl start docker
-    systemctl enable docker
-
-  elif [ "$OS" == "centos" ]; then
-    if [ "$OS_VER_MAJOR" == "7" ]; then
-      # install dependencies for Docker
-      yum install -y yum-utils device-mapper-persistent-data lvm2
-
-      # add repo to yum
-      yum-config-manager \
-        --add-repo \
-        https://download.docker.com/linux/centos/docker-ce.repo
-
-      # install Docker
-      yum install -y docker-ce docker-ce-cli containerd.io
-    elif [ "$OS_VER_MAJOR" == "8" ]; then
-      # install dependencies for Docker
-      dnf install -y dnf-utils device-mapper-persistent-data lvm2
-
-      # add repo to dnf
-      dnf config-manager --add-repo=https://download.docker.com/linux/centos/docker-ce.repo
-
-      # install Docker
-      dnf install -y docker-ce docker-ce-cli containerd.io --nobest
-    fi
-
-    # make sure it's enabled & running
-    systemctl start docker
-    systemctl enable docker
-
-  elif [ "$OS" == "almalinux" ]; then
-    if [ "$OS_VER_MAJOR" == "9" ] || [ "$OS_VER_MAJOR" == "9" ]; then
-      # install dependencies for Docker
-      dnf install -y dnf-utils device-mapper-persistent-data lvm2
-
-      # add repo to dnf
-      dnf config-manager --add-repo=https://download.docker.com/linux/centos/docker-ce.repo
-
-      # install Docker
-      dnf install -y docker-ce docker-ce-cli containerd.io --nobest
-    fi
-
-    # make sure it's enabled & running
-    systemctl start docker
-    systemctl enable docker
-  fi
-
-  echo "* Docker has now been installed."
-}
-
-function systemd_file {
-  echo "* Installing systemd service.."
-  curl -o /etc/systemd/system/wings.service $CONFIGS_URL/wings.service
-  systemctl daemon-reload
-  systemctl enable wings
-  systemctl restart wings
-  echo "* Installed systemd service!"
-}
-
-function create_database {
-  if [ "$OS" == "centos" ] || [ "$OS" == "almalinux" ]; then
-    # Secure MariaDB
-    echo "* MariaDB secure installation. The following are safe defaults."
-    echo "* Set root password? [Y/n] Y"
-    echo "* Remove anonymous users? [Y/n] Y"
-    echo "* Disallow root login remotely? [Y/n] Y"
-    echo "* Remove test database and access to it? [Y/n] Y"
-    echo "* Reload privilege tables now? [Y/n] Y"
-    echo "*"
-
-    mysql_secure_installation
-
-    echo "* The script should have asked you to set the MySQL root password earlier (not to be confused with the pterodactyl database user password)"
-    echo "* MySQL will now ask you to enter the password before each command."
-
-    echo "* Create MySQL user."
-    mariadb -u root -p -e "CREATE USER '${MYSQL_USER}'@'127.0.0.1' IDENTIFIED BY '${MYSQL_PASSWORD}';"
-
-    echo "* Create database."
-    mariadb -u root -p -e "CREATE DATABASE ${MYSQL_DB};"
-
-    echo "* Grant privileges."
-    mariadb -u root -p -e "GRANT ALL PRIVILEGES ON ${MYSQL_DB}.* TO '${MYSQL_USER}'@'127.0.0.1' WITH GRANT OPTION;"
-
-    echo "* Flush privileges."
-    mariadb -u root -p -e "FLUSH PRIVILEGES;"
-  else
-    echo "* Performing MySQL queries.."
-
-    echo "* Creating MySQL user.."
-    mariadb -u root -e "CREATE USER '${MYSQL_USER}'@'127.0.0.1' IDENTIFIED BY '${MYSQL_PASSWORD}';"
-
-    echo "* Creating database.."
-    mariadb -u root -e "CREATE DATABASE ${MYSQL_DB};"
-
-    echo "* Granting privileges.."
-    mariadb -u root -e "GRANT ALL PRIVILEGES ON ${MYSQL_DB}.* TO '${MYSQL_USER}'@'127.0.0.1' WITH GRANT OPTION;"
-
-    echo "* Flushing privileges.."
-    mariadb -u root -e "FLUSH PRIVILEGES;"
-
-    echo "* MySQL database created & configured!"
-  fi
-}
-
-##################################
-# OS specific install functions ##
-##################################
-
-function apt_update {
-  DEBIAN_FRONTEND=noninteractive apt update -y
-  DEBIAN_FRONTEND=noninteractive apt upgrade -y
-}
-
-function ubuntu_dep {
-  echo "* Installing dependencies for Ubuntu 22.."
-
-  # Add "apt-add-repository" command
-  DEBIAN_FRONTEND=noninteractive apt -y install software-properties-common curl apt-transport-https ca-certificates gnupg jq
-  
-  # Add additional repositories for PHP, Redis, and MariaDB
-  LC_ALL=C.UTF-8 apt-add-repository -y ppa:ondrej/php
-  curl -fsSL https://packages.redis.io/gpg | sudo gpg --dearmor -o /usr/share/keyrings/redis-archive-keyring.gpg
-  echo "deb [signed-by=/usr/share/keyrings/redis-archive-keyring.gpg] https://packages.redis.io/deb $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/redis.list
-  curl -sS https://downloads.mariadb.com/MariaDB/mariadb_repo_setup | sudo bash
-
-  # Update repositories list
-  DEBIAN_FRONTEND=noninteractive apt update -y
-
-  # Add universe repository if you are on Ubuntu 18.04
-  apt-add-repository universe -y
-
-  # Install Dependencies
-  DEBIAN_FRONTEND=noninteractive apt -y install php8.3 php8.3-{cli,gd,mysql,pdo,mbstring,tokenizer,bcmath,xml,fpm,curl,zip} mariadb-server nginx tar unzip git redis-server redis
-
-  # enable services
-  systemctl start mariadb
+# -------- OS specific install functions ------- #
+enable_services() {
+  case "$OS" in
+  ubuntu | debian)
+    systemctl enable redis-server
+    systemctl start redis-server
+    ;;
+  rocky | almalinux)
+    systemctl enable redis
+    systemctl start redis
+    ;;
+  esac
+  systemctl enable nginx
   systemctl enable mariadb
-  systemctl start redis-server
-  systemctl enable redis-server
-
-  echo "* Dependencies for Ubuntu installed!"
-}
-
-function debian_stretch_dep {
-  echo "* Installing dependencies for Debian 8/9.."
-
-  # MariaDB need dirmngr
-  DEBIAN_FRONTEND=noninteractive apt -y install dirmngr jq
-
-  # install PHP 8.3 using sury's repo instead of PPA
-  DEBIAN_FRONTEND=noninteractive apt install -y ca-certificates apt-transport-https lsb-release
-  wget -O /etc/apt/trusted.gpg.d/php.gpg https://packages.sury.org/php/apt.gpg
-  echo "deb https://packages.sury.org/php/ $(lsb_release -sc) main" | tee /etc/apt/sources.list.d/php.list
-
-  # Add the MariaDB repo (oldstable has mariadb version 10.1 and we need newer than that)
-  curl -sS https://downloads.mariadb.com/MariaDB/mariadb_repo_setup | bash
-
-  # Update repositories list
-  DEBIAN_FRONTEND=noninteractive apt update -y
-
-  # Install Dependencies
-  DEBIAN_FRONTEND=noninteractive apt -y install php8.3 php8.3-{cli,gd,mysql,pdo,mbstring,tokenizer,bcmath,xml,fpm,curl,zip} mariadb-server nginx curl tar unzip git redis-server
-
-  # enable services
   systemctl start mariadb
-  systemctl enable mariadb
-  systemctl start redis-server
-  systemctl enable redis-server
-
-  echo "* Dependencies for Debian 8/9 installed!"
 }
 
-function debian_dep {
-  echo "* Installing dependencies for Debian 10.."
-
-  # MariaDB need dirmngr
-  DEBIAN_FRONTEND=noninteractive apt install -y dirmngr jq
-
-  # install PHP 8.3 using sury's repo instead of default 7.2 package (in buster repo)
-  DEBIAN_FRONTEND=noninteractive apt install -y ca-certificates apt-transport-https lsb-release
-  wget -O /etc/apt/trusted.gpg.d/php.gpg https://packages.sury.org/php/apt.gpg
-  echo "deb https://packages.sury.org/php/ $(lsb_release -sc) main" | tee /etc/apt/sources.list.d/php.list
-
-  # Update repositories list
-  DEBIAN_FRONTEND=noninteractive apt update -y
-
-  # install dependencies
-  DEBIAN_FRONTEND=noninteractive apt -y install php8.3 php8.3-{cli,gd,mysql,pdo,mbstring,tokenizer,bcmath,xml,fpm,curl,zip} mariadb-server nginx curl tar unzip git redis-server
-
-  # enable services
-  systemctl start mariadb
-  systemctl enable mariadb
-  systemctl start redis-server
-  systemctl enable redis-server
-
-  echo "* Dependencies for Debian 10 installed!"
+selinux_allow() {
+  setsebool -P httpd_can_network_connect 1 || true # These commands can fail OK
+  setsebool -P httpd_execmem 1 || true
+  setsebool -P httpd_unified 1 || true
 }
 
-function rhel7_dep {
-  echo "* Installing dependencies for CentOS 7.."
-
-  # update first
-  yum update -y
-
-  # SELinux tools
-  yum install -y policycoreutils policycoreutils-python selinux-policy selinux-policy-targeted libselinux-utils setroubleshoot-server setools setools-console mcstrans jq
-
-  # add remi repo (php8.3)
-  yum install -y epel-release http://rpms.remirepo.net/enterprise/remi-release-7.rpm
-  yum install -y yum-utils
-  yum-config-manager -y --disable remi-php54
-  yum-config-manager -y --enable remi-php74
-  yum update -y
-
-  # Install MariaDB
-  curl -sS https://downloads.mariadb.com/MariaDB/mariadb_repo_setup | sudo bash
-
-  # install dependencies
-  yum -y install php php-common php-tokenizer php-curl php-fpm php-cli php-json php-mysqlnd php-mcrypt php-gd php-mbstring php-pdo php-zip php-bcmath php-dom php-opcache mariadb-server nginx curl tar zip unzip git redis
-
-  # enable services
-  systemctl enable mariadb
-  systemctl enable redis
-  systemctl start mariadb
-  systemctl start redis
-
-  # SELinux (allow nginx and redis)
-  setsebool -P httpd_can_network_connect 1
-  setsebool -P httpd_execmem 1
-  setsebool -P httpd_unified 1
-
-  echo "* Dependencies for CentOS installed!"
-}
-
-function rhel8_dep {
-  echo "* Installing dependencies for RHEL.."
-
-  # update first
-  dnf update -y
-
-  # SELinux tools
-  dnf install -y policycoreutils selinux-policy selinux-policy-targeted setroubleshoot-server setools setools-console mcstrans jq
-
-  # add remi repo (php8.3)
-  dnf install -y epel-release http://rpms.remirepo.net/enterprise/remi-release-8.rpm
-  dnf module enable -y php:remi-8.3
-  dnf update -y
-
-  dnf install -y php php-common php-fpm php-cli php-json php-mysqlnd php-gd php-mbstring php-pdo php-zip php-bcmath php-dom php-opcache
-
-  # MariaDB (use from official repo)
-  dnf install -y mariadb mariadb-server
-
-  # Other dependencies
-  dnf install -y nginx curl tar zip unzip git redis
-
-  # enable services
-  systemctl enable mariadb
-  systemctl enable redis
-  systemctl start mariadb
-  systemctl start redis
-
-  # SELinux (allow nginx and redis)
-  setsebool -P httpd_can_network_connect 1
-  setsebool -P httpd_execmem 1
-  setsebool -P httpd_unified 1
-
-  echo "* Dependencies for RHEL installed!"
-}
-
-#################################
-## OTHER OS SPECIFIC FUNCTIONS ##
-#################################
-
-function ubuntu_universedep {
-  # Probably should change this, this is more of a bandaid fix for this
-  # This function is ran before software-properties-common is installed
-  DEBIAN_FRONTEND=noninteractive apt update -y
-  DEBIAN_FRONTEND=noninteractive apt install software-properties-common -y
-
-  if grep -q universe "$SOURCES_PATH"; then
-    # even if it detects it as already existent, we'll still run the apt command to make sure
-    apt-add-repository universe -y
-    echo "* Ubuntu universe repo already exists."
-  else
-    apt-add-repository universe -y
-  fi
-}
-
-function centos_php {
-  curl -o /etc/php-fpm.d/www-pterodactyl.conf $CONFIGS_URL/www-pterodactyl.conf
+php_fpm_conf() {
+  curl -o /etc/php-fpm.d/www-pterodactyl.conf "$CONFIGS_URL"/www-pterodactyl.conf
 
   systemctl enable php-fpm
   systemctl start php-fpm
 }
 
-function firewall_ufw {
-  DEBIAN_FRONTEND=noninteractive apt update -y
-  DEBIAN_FRONTEND=noninteractive apt install ufw -y
+ubuntu_dep() {
+  # Install deps for adding repos
+  install_packages "software-properties-common apt-transport-https ca-certificates gnupg"
 
-  echo -e "\n* Enabling Uncomplicated Firewall (UFW)"
-  echo "* Opening port 22 (SSH), 80 (HTTP) and 443 (HTTPS)"
+  # Add Ubuntu universe repo
+  add-apt-repository universe -y
 
-  # pointing to /dev/null silences the command output
-  ufw allow ssh > /dev/null
-  ufw allow http > /dev/null
-  ufw allow https > /dev/null
-  ufw allow 8080 comment "pterodactyl wings" > /dev/null
-  ufw allow 2022 comment "pterodactyl sftp" > /dev/null
-
-  ufw --force enable
-  ufw status numbered | sed '/v6/d'
+  # Add PPA for PHP (we need 8.3)
+  LC_ALL=C.UTF-8 add-apt-repository -y ppa:ondrej/php
 }
 
-function firewall_firewalld {
-  echo -e "\n* Enabling firewall_cmd (firewalld)"
-  echo "* Opening port 22 (SSH), 80 (HTTP) and 443 (HTTPS)"
+debian_dep() {
+  # Install deps for adding repos
+  install_packages "dirmngr ca-certificates apt-transport-https lsb-release"
 
-  if [ "$OS_VER_MAJOR" == "7" ]; then
-    # pointing to /dev/null silences the command output
-    echo "* Installing firewall"
-    yum -y -q update > /dev/null
-    yum -y -q install firewalld > /dev/null
-
-    systemctl --now enable firewalld > /dev/null # Start and enable
-    firewall-cmd --add-port 8080/tcp --permanent -q # Port 8080
-    firewall-cmd --add-port 2022/tcp --permanent -q # Port 2022
-    firewall-cmd --add-service=http --permanent -q # Port 80
-    firewall-cmd --add-service=https --permanent -q # Port 443
-    firewall-cmd --add-service=ssh --permanent -q  # Port 22
-    firewall-cmd --reload -q # Enable firewall
-
-  elif [ "$OS_VER_MAJOR" == "8" ]; then
-    # pointing to /dev/null silences the command output
-    echo "* Installing firewall"
-    dnf -y -q update > /dev/null
-    dnf -y -q install firewalld > /dev/null
-
-    systemctl --now enable firewalld > /dev/null # Start and enable
-    firewall-cmd --add-port 8080/tcp --permanent -q # Port 8080
-    firewall-cmd --add-port 2022/tcp --permanent -q # Port 2022
-    firewall-cmd --add-service=http --permanent -q # Port 80
-    firewall-cmd --add-service=https --permanent -q # Port 443
-    firewall-cmd --add-service=ssh --permanent -q  # Port 22
-    firewall-cmd --reload -q # Enable firewall
-
-  else
-    print_error "Unsupported OS"
-    exit 1
-  fi
-
-  echo "* Firewall-cmd installed"
-  print_brake 70
+  # Install PHP 8.3 using sury's repo
+  curl -o /etc/apt/trusted.gpg.d/php.gpg https://packages.sury.org/php/apt.gpg
+  echo "deb https://packages.sury.org/php/ $(lsb_release -sc) main" | tee /etc/apt/sources.list.d/php.list
 }
 
-function letsencrypt {
-  FAILED=false
+alma_rocky_dep() {
+  # SELinux tools
+  install_packages "policycoreutils selinux-policy selinux-policy-targeted \
+    setroubleshoot-server setools setools-console mcstrans"
 
-  # Install certbot
-  if [ "$OS" == "debian" ] || [ "$OS" == "ubuntu" ]; then
-    DEBIAN_FRONTEND=noninteractive apt install -y snapd
-    snap install core; sudo snap refresh core
-    snap install --classic certbot
-    ln -s /snap/bin/certbot /usr/bin/certbot
-  elif [ "$OS" == "centos" "$OS" == "almalinux" ]; then
-    [ "$OS_VER_MAJOR" == "7" ] && yum install certbot
-    [ "$OS_VER_MAJOR" == "8" || "$OS_VER_MAJOR" == "9" ] && dnf install certbot
-  else
-    # exit
-    print_error "OS not supported."
-    exit 1
-  fi
+  # Add remi repo (php8.3)
+  install_packages "epel-release http://rpms.remirepo.net/enterprise/remi-release-$OS_VER_MAJOR.rpm"
+  dnf module enable -y php:remi-8.3
+}
 
-  # Restart nginx
+dep_install() {
+  output "Installing dependencies for $OS $OS_VER..."
+
+  # Update repos before installing
+  update_repos
+
+  [ "$CONFIGURE_FIREWALL" == true ] && install_firewall && firewall_ports
+
+  case "$OS" in
+  ubuntu | debian)
+    [ "$OS" == "ubuntu" ] && ubuntu_dep
+    [ "$OS" == "debian" ] && debian_dep
+
+    update_repos
+
+    # Install dependencies
+    install_packages "php8.3 php8.3-{cli,common,gd,mysql,mbstring,bcmath,xml,fpm,curl,zip} \
+      mariadb-common mariadb-server mariadb-client \
+      nginx \
+      redis-server \
+      zip unzip tar \
+      git cron"
+
+    ;;
+  rocky | almalinux)
+    alma_rocky_dep
+
+    # Install dependencies
+    install_packages "php php-{common,fpm,cli,json,mysqlnd,mcrypt,gd,mbstring,pdo,zip,bcmath,dom,opcache,posix} \
+      mariadb mariadb-server \
+      nginx \
+      redis \
+      zip unzip tar \
+      git cronie"
+
+    # Allow Nginx
+    selinux_allow
+
+    # Create config for PHP FPM
+    php_fpm_conf
+    ;;
+  esac
+
+  enable_services
+
+  success "Dependencies installed!"
+}
+
+# --------------- Other functions -------------- #
+firewall_ports "22 80 443 8080 2022"
+
+# ------ Webserver configuration functions ----- #
+configure_nginx() {
+  output "Configuring nginx .."
+
+  case "$OS" in
+  ubuntu | debian)
+    PHP_SOCKET="/run/php/php8.3-fpm.sock"
+    CONFIG_PATH_AVAIL="/etc/nginx/sites-available"
+    CONFIG_PATH_ENABL="/etc/nginx/sites-enabled"
+    ;;
+  rocky | almalinux)
+    PHP_SOCKET="/var/run/php-fpm/pterodactyl.sock"
+    CONFIG_PATH_AVAIL="/etc/nginx/conf.d"
+    CONFIG_PATH_ENABL="$CONFIG_PATH_AVAIL"
+    ;;
+  esac
+
+  rm -rf "$CONFIG_PATH_ENABL"/default
+  curl -o "$CONFIG_PATH_AVAIL"/pterodactyl.conf "$CONFIGS_URL"/nginx.conf
+  sed -i -e "s@<domain>@${IP_ADDRESS}@g" "$CONFIG_PATH_AVAIL"/pterodactyl.conf
+  sed -i -e "s@<php_socket>@${PHP_SOCKET}@g" "$CONFIG_PATH_AVAIL"/pterodactyl.conf
+
+  case "$OS" in
+  ubuntu | debian)
+    ln -sf "$CONFIG_PATH_AVAIL"/pterodactyl.conf "$CONFIG_PATH_ENABL"/pterodactyl.conf
+    ;;
+  esac
+
   systemctl restart nginx
-
+  success "Nginx configured!"
 }
 
-#######################################
-## WEBSERVER CONFIGURATION FUNCTIONS ##
-#######################################
+# --------------- Main functions --------------- #
+output "Starting installation.. this might take a while!"
+dep_install
+install_composer
+panel_dl
+install_composer_deps
+create_db_user "pterodactyl" "$MYSQL_PASSWORD"
+create_db "panel" "pterodactyl"
+configure
+set_folder_permissions
+insert_cronjob
+install_pteroq
+configure_nginx
 
-function configure_nginx {
-  echo "* Configuring nginx .."
-  DL_FILE="nginx.conf"
+# ------------------ Variables ----------------- #
+INSTALL_MARIADB="${INSTALL_MARIADB:-false}"
 
-  if [ "$OS" == "centos" ] || [ "$OS" == "almalinux" ]; then
-      # remove default config
-      rm -rf /etc/nginx/conf.d/default
+# Firewall
+CONFIGURE_FIREWALL="${CONFIGURE_FIREWALL:-false}"
 
-      # download new config
-      curl -o /etc/nginx/conf.d/pterodactyl.conf $CONFIGS_URL/$DL_FILE
+# Database host
+MYSQL_DBHOST_HOST="127.0.0.1"
+MYSQL_DBHOST_USER="pterodactyluser"
+MYSQL_DBHOST_PASSWORD="${MYSQL_DBHOST_PASSWORD:-}"
 
-      # replace all <domain> places with the correct domain
-      sed -i -e "s@<domain>@${FQDN}@g" /etc/nginx/conf.d/pterodactyl.conf
-
-      # replace all <php_socket> places with correct socket "path"
-      sed -i -e "s@<php_socket>@${PHP_SOCKET}@g" /etc/nginx/conf.d/pterodactyl.conf
-  else
-      # remove default config
-      rm -rf /etc/nginx/sites-enabled/default
-
-      # download new config
-      curl -o /etc/nginx/sites-available/pterodactyl.conf $CONFIGS_URL/$DL_FILE
-
-      # replace all <domain> places with the correct domain
-      sed -i -e "s@<domain>@${FQDN}@g" /etc/nginx/sites-available/pterodactyl.conf
-
-      # replace all <php_socket> places with correct socket "path"
-      sed -i -e "s@<php_socket>@${PHP_SOCKET}@g" /etc/nginx/sites-available/pterodactyl.conf
-
-      # on debian 8/9, TLS v1.3 is not supported
-      # this if statement can be refactored into a one-liner but I think this is more readable
-      if [ "$OS" == "debian" ]; then
-        if [ "$OS_VER_MAJOR" == "8" ] || [ "$OS_VER_MAJOR" == "9" ]; then
-          sed -i 's/ TLSv1.3//' file /etc/nginx/sites-available/pterodactyl.conf
-        fi
-      fi
-
-      # enable pterodactyl
-      ln -s /etc/nginx/sites-available/pterodactyl.conf /etc/nginx/sites-enabled/pterodactyl.conf
-  fi
-
-  # restart nginx
-  systemctl restart nginx
-  echo "* nginx configured!"
+# ----------- Installation functions ----------- #
+enable_services() {
+  [ "$INSTALL_MARIADB" == true ] && systemctl enable mariadb
+  [ "$INSTALL_MARIADB" == true ] && systemctl start mariadb
+  systemctl start docker
+  systemctl enable docker
 }
 
-####################
-## MAIN FUNCTIONS ##
-####################
+dep_install() {
+  output "Installing dependencies for $OS $OS_VER..."
 
-function perform_install {
-  echo "* Starting installation.. this might take a while!"
+  [ "$CONFIGURE_FIREWALL" == true ] && install_firewall && firewall_ports
 
-  [ "$CONFIGURE_UFW" == true ] && firewall_ufw
+  case "$OS" in
+  ubuntu | debian)
+    install_packages "ca-certificates gnupg lsb-release"
 
-  [ "$CONFIGURE_FIREWALL_CMD" == true ] && firewall_firewalld
+    mkdir -p /etc/apt/keyrings
+    curl -fsSL https://download.docker.com/linux/debian/gpg | gpg --dearmor --yes -o /etc/apt/keyrings/docker.gpg
 
-  # do different things depending on OS
-  if [ "$OS" == "ubuntu" ]; then
-    ubuntu_universedep
-    apt_update
-    # different dependencies depending on if it's 22, 20 or 18
-    if [ "$OS_VER_MAJOR" == "24" ] || [ "$OS_VER_MAJOR" == "22" ] || [ "$OS_VER_MAJOR" == "20" ] || [ "$OS_VER_MAJOR" == "18" ]; then
-      ubuntu_dep
-    else
-      print_error "Unsupported version of Ubuntu."
-      exit 1
-    fi
-    install_composer
-    panel_ptdl_dl
-    create_database
-    configure
-    insert_cronjob
-    install_pteroq
-    install_docker
-    ptdl_dl
-    systemd_file
+    echo \
+      "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/$OS \
+      $(lsb_release -cs) stable" | tee /etc/apt/sources.list.d/docker.list >/dev/null
+    ;;
 
-    if [ "$OS_VER_MAJOR" == "18" ] || [ "$OS_VER_MAJOR" == "20" ] || [ "$OS_VER_MAJOR" == "22" ] || [ "$OS_VER_MAJOR" == "24" ]; then
-      if [ "$CONFIGURE_LETSENCRYPT" == true ]; then
-        letsencrypt
-      fi
-    fi
-  elif [ "$OS" == "debian" ]; then
-    apt_update
-    if [ "$OS_VER_MAJOR" == "9" ]; then
-      debian_stretch_dep
-    elif [ "$OS_VER_MAJOR" == "10" ] || [ "$OS_VER_MAJOR" == "11" ] || [ "$OS_VER_MAJOR" == "12" ]; then
-      debian_dep
-    fi
-    install_composer
-    panel_ptdl_dl
-    create_database
-    configure
-    insert_cronjob
-    install_pteroq
-    install_docker
-    ptdl_dl
-    systemd_file
+  rocky | almalinux)
+    install_packages "dnf-utils"
+    dnf config-manager --add-repo=https://download.docker.com/linux/centos/docker-ce.repo
 
-    if [ "$OS_VER_MAJOR" == "9" ] || [ "$OS_VER_MAJOR" == "10" ] || [ "$OS_VER_MAJOR" == "11" ] || [ "$OS_VER_MAJOR" == "12" ]; then
-      if [ "$CONFIGURE_LETSENCRYPT" == true ]; then
-        letsencrypt
-      fi
-    fi
-  elif [ "$OS" == "centos" || "$OS" == "almalinux" ]; then
-    if [ "$OS_VER_MAJOR" == "7" ]; then
-      rhel7_dep
-    elif [ "$OS_VER_MAJOR" == "8" || "$OS_VER_MAJOR" == "9" ]; then
-      rhel8_dep
-    fi
-    centos_php
-    install_composer
-    panel_ptdl_dl
-    create_database
-    configure
-    insert_cronjob
-    install_pteroq
-    install_docker
-    ptdl_dl
-    systemd_file
-    if [ "$OS_VER_MAJOR" == "7" ] || [ "$OS_VER_MAJOR" == "8" ]; then
-      if [ "$CONFIGURE_LETSENCRYPT" == true ]; then
-        letsencrypt
-      fi
-    fi
-  else
-    # exit
-    print_error "OS not supported."
-    exit 1
-  fi
+    install_packages "device-mapper-persistent-data lvm2"
+    ;;
+  esac
 
-  # perform webserver configuration
-  if [ "$WEBSERVER" == "nginx" ]; then
-    configure_nginx
-  else
-    print_error "Invalid webserver."
-    exit 1
-  fi
+  # Update the new repos
+  update_repos
+
+  # Install dependencies
+  install_packages "docker-ce docker-ce-cli containerd.io"
+
+  # Install MariaDB if needed
+  [ "$INSTALL_MARIADB" == true ] && install_packages "mariadb-server"
+
+  enable_services
+
+  success "Dependencies installed!"
 }
 
-function main {
-  # check if we can detect an already existing installation
-  if [ -d "/var/www/pterodactyl" ]; then
-    print_warning "The script has detected that you already have Pterodactyl panel on your system! You cannot run the script multiple times, it will fail!"
-    echo -e -n "* Are you sure you want to proceed? (y/N): "
-    read -r CONFIRM_PROCEED
-    if [[ ! "$CONFIRM_PROCEED" =~ [Yy] ]]; then
-      print_error "Installation aborted!"
-      exit 1
-    fi
-  fi
+wings_dl() {
+  echo "* Downloading Pterodactyl Wings.. "
 
-  # detect distro
-  detect_distro
+  mkdir -p /etc/pterodactyl
+  curl -L -o /usr/local/bin/wings "$WINGS_DL_URL$ARCH"
 
-  # checks if the system is compatible with this installation script
-  check_os_comp
+  chmod u+x /usr/local/bin/wings
 
-  #set the timezone
-  timezone="America/Chicago"
-
-  # summary
-  summary
-
-  # confirm installation
-  echo -e -n "\n* Continue with installation? (y/N): "
-  read -r CONFIRM
-  if [[ "$CONFIRM" =~ [Yy] ]]; then
-    perform_install
-  else
-    # run welcome script again
-    print_error "Installation aborted."
-    exit 1
-  fi
-  cp /var/www/pterodactyl/.env /etc/pterodactyl
+  success "Pterodactyl Wings downloaded successfully"
 }
 
-function summary {
-  print_brake 62
-  echo "* Pterodactyl panel $PTERODACTYL_VERSION with $WEBSERVER on $OS"
-  echo "* Panel URL: http://$FQDN"
-  echo "* Username: $user_username"
-  echo "* Password: $PASSWORD"
-  print_brake 62
+systemd_file() {
+  output "Installing systemd service.."
+
+  curl -o /etc/systemd/system/wings.service "$CONFIGS_URL"/wings.service
+  systemctl daemon-reload
+  systemctl enable wings
+
+  success "Installed systemd service!"
 }
 
-function goodbye {
-  echo "* Panel installation completed"
-  echo "*  ${COLOR_RED}Note${COLOR_NC}: Now follow the post installation process https://github.com/ForestRacks/PteroInstaller#post-installation"
-}
+firewall_ports "22 80 443 8080 2022"
 
-# run script
-main
-summary
-goodbye
+# --------------- Main functions --------------- #
+output "Installing Pterodactyl Wings.."
+dep_install
+wings_dl
+systemd_file
+print_brake 62
+echo "* Pterodactyl Panel installed successfully!"
+echo "* Panel URL: http://$IP_ADDRESS"
+echo "* Username: admin"
+echo "* Password: $USER_PASSWORD"
+print_brake 62
+exit
