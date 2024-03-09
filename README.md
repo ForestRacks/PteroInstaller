@@ -19,13 +19,12 @@ bash <(curl -Ss https://raw.githubusercontent.com/ForestRacks/PteroInstaller/Pro
 ## Compatible Operating Systems:
 | Operating System | Version | Supported          | PHP Version |
 | ---------------- | ------- | ------------------ | ----------- |
-| Ubuntu           | 18.04   | :white_check_mark: | 8.3         |
-|                  | 20.04   | :white_check_mark: | 8.3         |
+| Ubuntu           | 20.04   | :white_check_mark: | 8.3         |
 |                  | 22.04   | :white_check_mark: | 8.3         |
-|                  | 24.04   | :white_check_mark: | 8.3         |
-| Debian           | 10      | :white_check_mark: | 8.3         |
-|                  | 11      | :white_check_mark: | 8.3         |
+|                  | 24.04   | :red_circle: \*    |             |
+| Debian           | 11      | :white_check_mark: | 8.3         |
 |                  | 12      | :white_check_mark: | 8.3         |
+|                  | 13      | :red_circle: \*    |             |
 | Rocky Linux      | 8       | :white_check_mark: | 8.3         |
 |                  | 9       | :white_check_mark: | 8.3         |
 | AlmaLinux        | 8       | :white_check_mark: | 8.3         |
