@@ -20,7 +20,7 @@ export SUPPORTED=false
 # download URLs
 export PANEL_DL_URL="https://github.com/pterodactyl/panel/releases/latest/download/panel.tar.gz"
 export WINGS_DL_URL="https://github.com/pterodactyl/wings/releases/latest/download/wings_linux_"
-export GIT_REPO_URL="https://raw.githubusercontent.com/ForestRacks/PteroInstaller/Production/"
+export GIT_REPO_URL="https://raw.githubusercontent.com/ForestRacks/PteroInstaller/Production"
 
 # Colors
 COLOR_YELLOW='\033[1;33m'
