@@ -24,7 +24,7 @@ if [[ $EUID -ne 0 ]]; then
   exit 1
 fi
 
-# check for curl
+# Check for curl
 if ! [ -x "$(command -v curl)" ]; then
   echo "* Installing dependencies."
   # Rockey / Alma
@@ -47,13 +47,36 @@ fi
 
 # Check for existing installation
 if [ -d "/var/www/pterodactyl" ]; then
-  error "The script has detected that you already have Pterodactyl panel on your system! You cannot run the script multiple times, it will fail! Please reinstall your machine."
-  echo -e -n "* Are you sure you want to proceed? (y/N): "
-  read -r CONFIRM_PROCEED
-  if [[ ! "$CONFIRM_PROCEED" =~ [Yy] ]]; then
-    print_error "Installation aborted!"
-    exit 1
-  fi
+  error "The script has detected that you already have Pterodactyl panel on your system!"
+  output "[1] Uninstall Pterodactyl - Attmpet automated Pterodactyl uninstallation."
+  output "[2] Continue Anyway - Ignore warnings and attempt to install Pterodactyl anyway."
+  output "[3] Exit Installer - Cancel installation process."
+
+  echo -n "* Input 1-3: "
+  read -r action
+
+  case $action in
+    1)
+      echo "Attempting uninstall..."
+      bash <(curl -s https://raw.githubusercontent.com/ForestRacks/PteroInstaller/Production/modes/uninstall.sh)
+      echo -e -n "* Pterodactyl successfully uinstalled, attempt an install now? (y/N): "
+      read -r CONFIRM_PROCEED
+      if [[ ! "$CONFIRM_PROCEED" =~ [Yy] ]]; then
+        print_error "Installation aborted!"
+        exit 1
+      fi
+      ;;
+    2)
+      echo "Attempting to proceed anyway..."
+      ;;
+    3)
+      echo "Exiting installer..."
+      exit 1
+      ;;
+    *)
+      echo "Invalid option. Please input a number between 1 and 3."
+      ;;
+  esac
 fi
 
 # Start install process
@@ -115,10 +138,10 @@ if [ "$basic" == false ] && [ "$standard" == false ]; then
     esac
   done
 
-  [ "$panel" == true ] && bash <(curl -s https://raw.githubusercontent.com/ForestRacks/PteroInstaller/Production/install-panel.sh)
-  [ "$wings" == true ] && bash <(curl -s https://raw.githubusercontent.com/ForestRacks/PteroInstaller/Production/install-wings.sh)
+  [ "$panel" == true ] && bash <(curl -s https://raw.githubusercontent.com/ForestRacks/PteroInstaller/Production/modes/panel.sh)
+  [ "$wings" == true ] && bash <(curl -s https://raw.githubusercontent.com/ForestRacks/PteroInstaller/Production/modes/wings.sh)
 elif [ "$standard" == true ]; then
-  bash <(curl -s https://raw.githubusercontent.com/ForestRacks/PteroInstaller/Production/install-standard.sh)
+  bash <(curl -s https://raw.githubusercontent.com/ForestRacks/PteroInstaller/Production/modes/standard.sh)
 else
-  bash <(curl -s https://raw.githubusercontent.com/ForestRacks/PteroInstaller/Production/install-basic.sh)
+  bash <(curl -s https://raw.githubusercontent.com/ForestRacks/PteroInstaller/Production/modes/basic.sh)
 fi
