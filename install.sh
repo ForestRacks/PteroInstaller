@@ -5,43 +5,6 @@ set -e
 # Pterodactyl Installer 
 # Copyright Forestracks 2022-2024
 
-# exit with error status code if user is not root
-if [[ $EUID -ne 0 ]]; then
-  echo "* This script must be executed with root privileges (sudo)." 1>&2
-  exit 1
-fi
-
-# check for curl
-if ! [ -x "$(command -v curl)" ]; then
-  echo "* Installing dependencies."
-  # RHEL / CentOS / etc
-  if [ -n "$(command -v yum)" ]; then
-    yum update -y >> /dev/null 2>&1
-    yum -y install curl >> /dev/null 2>&1
-  fi
-  if [ -n "$(command -v apt-get)" ]; then
-    DEBIAN_FRONTEND=noninteractive apt update -y >> /dev/null 2>&1
-    DEBIAN_FRONTEND=noninteractive apt install -y --no-install-recommends snapd cron curl wget gzip >> /dev/null 2>&1
-  fi
-  # Check if curl was installed
-  if ! [ -x "$(command -v curl)" ]; then
-    echo "* curl is required in order for this script to work."
-    echo "* install using apt (Debian and derivatives) or yum/dnf (CentOS)"
-    exit 1
-  fi
-fi
-
-# Check for existing installation
-if [ -d "/var/www/pterodactyl" ]; then
-  print_warning "The script has detected that you already have Pterodactyl panel on your system! You cannot run the script multiple times, it will fail!"
-  echo -e -n "* Are you sure you want to proceed? (y/N): "
-  read -r CONFIRM_PROCEED
-  if [[ ! "$CONFIRM_PROCEED" =~ [Yy] ]]; then
-    print_error "Installation aborted!"
-    exit 1
-  fi
-fi
-
 output() {
   echo "* ${1}"
 }
@@ -54,6 +17,46 @@ error() {
   echo -e "* ${COLOR_RED}ERROR${COLOR_NC}: $1"
   echo ""
 }
+
+# Exit with error status code if user is not root
+if [[ $EUID -ne 0 ]]; then
+  error "This script must be executed with root privileges (sudo)." 1>&2
+  exit 1
+fi
+
+# check for curl
+if ! [ -x "$(command -v curl)" ]; then
+  echo "* Installing dependencies."
+  # Rockey / Alma
+  if [ -n "$(command -v yum)" ]; then
+    yum update -y >> /dev/null 2>&1
+    yum -y install curl >> /dev/null 2>&1
+  fi
+  # Debian / Ubuntu
+  if [ -n "$(command -v apt-get)" ]; then
+    DEBIAN_FRONTEND=noninteractive apt update -y >> /dev/null 2>&1
+    DEBIAN_FRONTEND=noninteractive apt install -y --no-install-recommends snapd cron curl wget gzip >> /dev/null 2>&1
+  fi
+  # Check if curl is installed
+  if ! [ -x "$(command -v curl)" ]; then
+    echo "* curl is required in order for this script to work."
+    echo "* install using apt (Debian and derivatives) or yum/dnf (CentOS)"
+    exit 1
+  fi
+fi
+
+# Check for existing installation
+if [ -d "/var/www/pterodactyl" ]; then
+  error "The script has detected that you already have Pterodactyl panel on your system! You cannot run the script multiple times, it will fail! Please reinstall your machine."
+  echo -e -n "* Are you sure you want to proceed? (y/N): "
+  read -r CONFIRM_PROCEED
+  if [[ ! "$CONFIRM_PROCEED" =~ [Yy] ]]; then
+    print_error "Installation aborted!"
+    exit 1
+  fi
+fi
+
+# Start install process
 basic=false
 standard=false
 advanced=false
@@ -64,15 +67,15 @@ wings=false
 output "Pterodactyl installation script"
 output "This script is not associated with the official Pterodactyl Project. PteroInstaller comes with ABSOLUTELY NO WARRANTY, to the extent permitted by applicable law."
 output
-output "DISCLAIMER: This installer may not work as intended on all environments. Please reinstall your machine if you need to rerun the script because rerunning it could have unintended consequences."
+output "DISCLAIMER: This installer may not work as intended on all environments."
 
 output
 
 while [ "$basic" == false ] && [ "$standard" == false ] && [ "$advanced" == false ]; do
   output "What installation mode would you like to use?"
   output "[1] Basic Installer - Install the panel and wings on your IP with very few prompts."
-  # output "[2] Standard installer - Install the panel and wings with prompts for an FQDN and SSL."
-  # output "[3] Advanced installer - Install either the panel or wings with options like mail configuration"
+  output "[2] Standard installer - Install the panel and wings with prompts for an FQDN and SSL."
+  output "[3] Advanced installer - Install either the panel or wings with options like mail configuration"
 
   echo -n "* Input 1-3: "
   read -r action
