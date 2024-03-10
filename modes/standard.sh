@@ -374,7 +374,7 @@ php_fpm_conf() {
 
 ubuntu_dep() {
   # Install deps for adding repos
-  install_packages "software-properties-common apt-transport-https ca-certificates gnupg"
+  install_packages "software-properties-common apt-transport-https ca-certificates gnupg jq"
 
   # Add Ubuntu universe repo
   add-apt-repository universe -y
