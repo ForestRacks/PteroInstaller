@@ -25,6 +25,18 @@ COLOR_GREEN='\033[0;32m'
 COLOR_RED='\033[0;31m'
 COLOR_NC='\033[0m'
 
+# Domain name / IP
+IP_ADDRESS="$(hostname -I | awk '{print $1}')"
+
+# Default User credentials
+MYSQL_PASSWORD=$(head -c 100 /dev/urandom | LC_ALL=C tr -dc 'A-Za-z0-9!"#%&()*+,-./:;<=>?@[\]^_`{|}~' | fold -w 32 | head -n 1)
+USER_PASSWORD=$(head -c 100 /dev/urandom | LC_ALL=C tr -dc 'A-Za-z0-9' | fold -w 32 | head -n 1)
+
+# Database host
+MYSQL_DBHOST_HOST="127.0.0.1"
+MYSQL_DBHOST_USER="pterodactyluser"
+MYSQL_DBHOST_PASSWORD="${MYSQL_DBHOST_PASSWORD:-}"
+
 # -------------- Visual functions -------------- #
 output() {
   echo -e "* $1"
@@ -56,215 +68,7 @@ print_brake() {
     echo ""
 }
 
-# -------------------- MYSQL ------------------- #
-create_db_user() {
-  local db_user_name="$1"
-  local db_user_password="$2"
-  local db_host="${3:-127.0.0.1}"
-
-  output "Creating database user $db_user_name..."
-
-  mariadb -u root -e "CREATE USER '$db_user_name'@'$db_host' IDENTIFIED BY '$db_user_password';"
-  mariadb -u root -e "FLUSH PRIVILEGES;"
-
-  output "Database user $db_user_name created"
-}
-
-grant_all_privileges() {
-  local db_name="$1"
-  local db_user_name="$2"
-  local db_host="${3:-127.0.0.1}"
-
-  output "Granting all privileges on $db_name to $db_user_name..."
-
-  mariadb -u root -e "GRANT ALL PRIVILEGES ON $db_name.* TO '$db_user_name'@'$db_host' WITH GRANT OPTION;"
-  mariadb -u root -e "FLUSH PRIVILEGES;"
-
-  output "Privileges granted"
-
-}
-
-create_db() {
-  local db_name="$1"
-  local db_user_name="$2"
-  local db_host="${3:-127.0.0.1}"
-
-  output "Creating database $db_name..."
-
-  mariadb -u root -e "CREATE DATABASE $db_name;"
-  grant_all_privileges "$db_name" "$db_user_name" "$db_host"
-
-  output "Database $db_name created"
-}
-
-# --------------- Package Manager -------------- #
-# Argument for quite mode
-update_repos() {
-  local args=""
-  [[ $1 == true ]] && args="-qq"
-  case "$OS" in
-  ubuntu | debian)
-    apt-get -y $args update
-    ;;
-  *)
-    # Do nothing as AlmaLinux and RockyLinux update metadata before installing packages.
-    ;;
-  esac
-}
-
-# First argument list of packages to install, second argument for quite mode
-install_packages() {
-  local args=""
-  if [[ $2 == true ]]; then
-    case "$OS" in
-    ubuntu | debian) args="-qq" ;;
-    *) args="-q" ;;
-    esac
-  fi
-
-  # Eval needed for proper expansion of arguments
-  case "$OS" in
-  ubuntu | debian)
-    eval apt-get -y $args install "$1"
-    ;;
-  rocky | almalinux)
-    eval dnf -y $args install "$1"
-    ;;
-  esac
-}
-
-# ------------------ Firewall ------------------ #
-ask_firewall() {
-  local __resultvar=$1
-
-  case "$OS" in
-  ubuntu | debian)
-    echo -e -n "* Do you want to automatically configure UFW (firewall)? (y/N): "
-    read -r CONFIRM_UFW
-
-    if [[ "$CONFIRM_UFW" =~ [Yy] ]]; then
-      eval "$__resultvar="'true'""
-    fi
-    ;;
-  rocky | almalinux)
-    echo -e -n "* Do you want to automatically configure firewall-cmd (firewall)? (y/N): "
-    read -r CONFIRM_FIREWALL_CMD
-
-    if [[ "$CONFIRM_FIREWALL_CMD" =~ [Yy] ]]; then
-      eval "$__resultvar="'true'""
-    fi
-    ;;
-  esac
-}
-
-install_firewall() {
-  case "$OS" in
-  ubuntu | debian)
-    output ""
-    output "Installing Uncomplicated Firewall (UFW)"
-
-    if ! [ -x "$(command -v ufw)" ]; then
-      update_repos true
-      install_packages "ufw" true
-    fi
-
-    ufw --force enable
-
-    success "Enabled Uncomplicated Firewall (UFW)"
-
-    ;;
-  rocky | almalinux)
-
-    output ""
-    output "Installing FirewallD"+
-
-    if ! [ -x "$(command -v firewall-cmd)" ]; then
-      install_packages "firewalld" true
-    fi
-
-    systemctl --now enable firewalld >/dev/null
-
-    success "Enabled FirewallD"
-
-    ;;
-  esac
-}
-
-firewall_ports() {
-  case "$OS" in
-  ubuntu | debian)
-    for port in $1; do
-      ufw allow "$port"
-    done
-    ufw --force reload
-    ;;
-  rocky | almalinux)
-    for port in $1; do
-      firewall-cmd --zone=public --add-port="$port"/tcp --permanent
-    done
-    firewall-cmd --reload -q
-    ;;
-  esac
-}
-
-# ---------------- System checks --------------- #
-# Panel x86_64 check
-check_os_x86_64() {
-  if [ "${ARCH}" != "amd64" ]; then
-    warning "Detected CPU architecture $CPU_ARCHITECTURE"
-    warning "Using any other architecture than 64 bit (x86_64) will cause problems."
-
-    echo -e -n "* Are you sure you want to proceed? (y/N):"
-    read -r choice
-
-    if [[ ! "$choice" =~ [Yy] ]]; then
-      error "Installation aborted!"
-      exit 1
-    fi
-  fi
-}
-
-# Wings virtualization check
-check_virt() {
-  output "Installing virt-what..."
-
-  update_repos true
-  install_packages "virt-what" true
-
-  # Export sbin for virt-what
-  export PATH="$PATH:/sbin:/usr/sbin"
-
-  virt_serv=$(virt-what)
-
-  case "$virt_serv" in
-  *openvz* | *lxc*)
-    warning "Unsupported type of virtualization detected. Please consult with your hosting provider whether your server can run Docker or not. Proceed at your own risk."
-    echo -e -n "* Are you sure you want to proceed? (y/N): "
-    read -r CONFIRM_PROCEED
-    if [[ ! "$CONFIRM_PROCEED" =~ [Yy] ]]; then
-      error "Installation aborted!"
-      exit 1
-    fi
-    ;;
-  *)
-    [ "$virt_serv" != "" ] && warning "Virtualization: $virt_serv detected."
-    ;;
-  esac
-
-  if uname -r | grep -q "xxxx"; then
-    error "Unsupported kernel detected."
-    exit 1
-  fi
-
-  success "System is compatible with docker"
-}
-
-# Exit with error status code if user is not root
-if [[ $EUID -ne 0 ]]; then
-  error "This script must be executed with root privileges."
-  exit 1
-fi
-
+# --------------- OS detection ---------------- #
 # Detect OS
 if [ -f /etc/os-release ]; then
   # freedesktop.org and systemd
@@ -344,14 +148,133 @@ if [ "$SUPPORTED" == false ]; then
   exit 1
 fi
 
+# -------------------- MYSQL ------------------- #
+create_db_user() {
+  local db_user_name="$1"
+  local db_user_password="$2"
+  local db_host="${3:-127.0.0.1}"
 
-# ------------------ Variables ----------------- #
-# Domain name / IP
-IP_ADDRESS="$(hostname -I | awk '{print $1}')"
+  output "Creating database user $db_user_name..."
 
-# Default User credentials
-MYSQL_PASSWORD=$(head -c 100 /dev/urandom | LC_ALL=C tr -dc 'A-Za-z0-9!"#%&()*+,-./:;<=>?@[\]^_`{|}~' | fold -w 32 | head -n 1)
-USER_PASSWORD=$(head -c 100 /dev/urandom | LC_ALL=C tr -dc 'A-Za-z0-9' | fold -w 32 | head -n 1)
+  mariadb -u root -e "CREATE USER '$db_user_name'@'$db_host' IDENTIFIED BY '$db_user_password';"
+  mariadb -u root -e "FLUSH PRIVILEGES;"
+
+  output "Database user $db_user_name created"
+}
+
+grant_all_privileges() {
+  local db_name="$1"
+  local db_user_name="$2"
+  local db_host="${3:-127.0.0.1}"
+
+  output "Granting all privileges on $db_name to $db_user_name..."
+
+  mariadb -u root -e "GRANT ALL PRIVILEGES ON $db_name.* TO '$db_user_name'@'$db_host' WITH GRANT OPTION;"
+  mariadb -u root -e "FLUSH PRIVILEGES;"
+
+  output "Privileges granted"
+
+}
+
+create_db() {
+  local db_name="$1"
+  local db_user_name="$2"
+  local db_host="${3:-127.0.0.1}"
+
+  output "Creating database $db_name..."
+
+  mariadb -u root -e "CREATE DATABASE $db_name;"
+  grant_all_privileges "$db_name" "$db_user_name" "$db_host"
+
+  output "Database $db_name created"
+}
+
+# --------------- Package Manager -------------- #
+# Argument for quite mode
+update_repos() {
+  local args=""
+  [[ $1 == true ]] && args="-qq"
+  case "$OS" in
+  ubuntu | debian)
+    apt-get -y $args update
+    ;;
+  *)
+    # Do nothing as AlmaLinux and RockyLinux update metadata before installing packages.
+    ;;
+  esac
+}
+
+# First argument list of packages to install, second argument for quite mode
+install_packages() {
+  local args=""
+  if [[ $2 == true ]]; then
+    case "$OS" in
+    ubuntu | debian) args="-qq" ;;
+    *) args="-q" ;;
+    esac
+  fi
+
+  # Eval needed for proper expansion of arguments
+  case "$OS" in
+  ubuntu | debian)
+    eval apt-get -y $args install "$1"
+    ;;
+  rocky | almalinux)
+    eval dnf -y $args install "$1"
+    ;;
+  esac
+}
+
+# ------------------ Firewall ------------------ #
+install_firewall() {
+  case "$OS" in
+  ubuntu | debian)
+    output ""
+    output "Installing Uncomplicated Firewall (UFW)"
+
+    if ! [ -x "$(command -v ufw)" ]; then
+      update_repos true
+      install_packages "ufw" true
+    fi
+
+    ufw --force enable
+
+    success "Enabled Uncomplicated Firewall (UFW)"
+
+    ;;
+  rocky | almalinux)
+
+    output ""
+    output "Installing FirewallD"+
+
+    if ! [ -x "$(command -v firewall-cmd)" ]; then
+      install_packages "firewalld" true
+    fi
+
+    systemctl --now enable firewalld >/dev/null
+
+    success "Enabled FirewallD"
+
+    ;;
+  esac
+}
+
+firewall_ports() {
+  case "$OS" in
+  ubuntu | debian)
+    for port in $1; do
+      ufw allow "$port"
+    done
+    ufw --force reload
+    ;;
+  rocky | almalinux)
+    for port in $1; do
+      firewall-cmd --zone=public --add-port="$port"/tcp --permanent
+    done
+    firewall-cmd --reload -q
+    ;;
+  esac
+}
 
 # --------- Main installation functions -------- #
 install_composer() {
@@ -382,7 +305,7 @@ install_composer_deps() {
 }
 
 # Configure environment
-configure() {
+configure_env() {
   output "Configuring environment.."
 
   local app_url="http://$IP_ADDRESS"
@@ -501,7 +424,7 @@ insert_cronjob() {
   success "Cronjob installed!"
 }
 
-install_pteroq() {
+pteroq_systemd() {
   output "Installing pteroq service.."
 
   curl -o /etc/systemd/system/pteroq.service "$CONFIGS_URL"/pteroq.service
@@ -518,7 +441,7 @@ install_pteroq() {
   systemctl enable pteroq.service
   systemctl start pteroq
 
-  success "Installed pteroq!"
+  success "Installed pteroq systemd service!"
 }
 
 # -------- OS specific install functions ------- #
@@ -581,13 +504,11 @@ alma_rocky_dep() {
   dnf module enable -y php:remi-8.3
 }
 
-dep_install() {
+panel_deps() {
   output "Installing dependencies for $OS $OS_VER..."
 
   # Update repos before installing
   update_repos
-
-  [ "$CONFIGURE_FIREWALL" == true ] && install_firewall && firewall_ports
 
   case "$OS" in
   ubuntu | debian)
@@ -629,9 +550,6 @@ dep_install() {
   success "Dependencies installed!"
 }
 
-# --------------- Other functions -------------- #
-firewall_ports "22 80 443 8080 2022"
-
 # ------ Webserver configuration functions ----- #
 configure_nginx() {
   output "Configuring nginx .."
@@ -664,43 +582,10 @@ configure_nginx() {
   success "Nginx configured!"
 }
 
-# --------------- Main functions --------------- #
-output "Starting installation.. this might take a while!"
-dep_install
-install_composer
-panel_dl
-install_composer_deps
-create_db_user "pterodactyl" "$MYSQL_PASSWORD"
-create_db "panel" "pterodactyl"
-configure
-set_folder_permissions
-insert_cronjob
-install_pteroq
-configure_nginx
 
-# ------------------ Variables ----------------- #
-INSTALL_MARIADB="${INSTALL_MARIADB:-false}"
-
-# Firewall
-CONFIGURE_FIREWALL="${CONFIGURE_FIREWALL:-false}"
-
-# Database host
-MYSQL_DBHOST_HOST="127.0.0.1"
-MYSQL_DBHOST_USER="pterodactyluser"
-MYSQL_DBHOST_PASSWORD="${MYSQL_DBHOST_PASSWORD:-}"
-
-# ----------- Installation functions ----------- #
-enable_services() {
-  [ "$INSTALL_MARIADB" == true ] && systemctl enable mariadb
-  [ "$INSTALL_MARIADB" == true ] && systemctl start mariadb
-  systemctl start docker
-  systemctl enable docker
-}
-
-dep_install() {
+# --------------- Wings functions --------------- #
+wings_deps() {
   output "Installing dependencies for $OS $OS_VER..."
-
-  [ "$CONFIGURE_FIREWALL" == true ] && install_firewall && firewall_ports
 
   case "$OS" in
   ubuntu | debian)
@@ -728,10 +613,8 @@ dep_install() {
   # Install dependencies
   install_packages "docker-ce docker-ce-cli containerd.io"
 
-  # Install MariaDB if needed
-  [ "$INSTALL_MARIADB" == true ] && install_packages "mariadb-server"
-
-  enable_services
+  systemctl start docker
+  systemctl enable docker
 
   success "Dependencies installed!"
 }
@@ -747,7 +630,7 @@ wings_dl() {
   success "Pterodactyl Wings downloaded successfully"
 }
 
-systemd_file() {
+wings_systemd() {
   output "Installing systemd service.."
 
   curl -o /etc/systemd/system/wings.service "$CONFIGS_URL"/wings.service
@@ -757,18 +640,30 @@ systemd_file() {
   sleep 3
   systemctl start wings
 
-  success "Installed systemd service!"
+  success "Installed wings systemd service!"
 }
 
+# --------------- Execute functions --------------- #
+output "Starting Pterodactyl Panel installation.. this might take a while!"
+panel_deps
+install_composer
+panel_dl
+install_composer_deps
+create_db_user "pterodactyl" "$MYSQL_PASSWORD"
+create_db "panel" "pterodactyl"
+configure_env
+set_folder_permissions
+insert_cronjob
+pteroq_systemd
+configure_nginx
+install_firewall
 firewall_ports "22 80 443 8080 2022"
-
-# --------------- Main functions --------------- #
 output "Installing Pterodactyl Wings.."
-dep_install
+wings_deps
 wings_dl
-systemd_file
+wings_systemd
 
-# ----------------- Print Login ---------------- #
+# ----------------- Print Credentials ---------------- #
 print_brake 62
 output "Pterodactyl Panel installed successfully!"
 output "Panel URL: http://$IP_ADDRESS"
