@@ -9,7 +9,7 @@ set -e
 fn_exists() { declare -F "$1" >/dev/null; }
 if ! fn_exists lib_loaded; then
   # shellcheck source=lib/main.sh
-  source /tmp/main.sh || source <(curl -sSL "$GIT_REPO_URL"/lib/main.sh)
+  source <(curl -sSL "$GIT_REPO_URL"/lib/main.sh)
   ! fn_exists lib_loaded && echo "* ERROR: Could not load lib script" && exit 1
 fi
 

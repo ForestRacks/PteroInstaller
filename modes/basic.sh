@@ -42,7 +42,7 @@ MYSQL_DBHOST_PASSWORD="${MYSQL_DBHOST_PASSWORD:-}"
 fn_exists() { declare -F "$1" >/dev/null; }
 if ! fn_exists lib_loaded; then
   # shellcheck source=lib/main.sh
-  source /tmp/main.sh || source <(curl -sSL "$GIT_REPO_URL"/lib/main.sh)
+  source <(curl -sSL "$GIT_REPO_URL"/lib/main.sh)
   ! fn_exists lib_loaded && echo "* ERROR: Could not load lib script" && exit 1
 fi
 
@@ -253,7 +253,7 @@ configure_env() {
     --database="panel" \
     --username="pterodactyl" \
     --password="$MYSQL_PASSWORD"
-  cp -r /var/www/pterodactyl/.env /etc/pterodactyl/.env
+  # cp /var/www/pterodactyl/.env /etc/pterodactyl/.env
 
   # Seed database
   php artisan migrate --seed --force
