@@ -253,7 +253,7 @@ configure_env() {
     --database="panel" \
     --username="pterodactyl" \
     --password="$MYSQL_PASSWORD"
-  cp /var/www/pterodactyl/.env /etc/pterodactyl/.env
+  cp -r /var/www/pterodactyl/.env /etc/pterodactyl/.env
 
   # Seed database
   php artisan migrate --seed --force
