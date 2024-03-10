@@ -17,7 +17,7 @@ export SUPPORTED=false
 # Download URLs
 export PANEL_DL_URL="https://github.com/pterodactyl/panel/releases/latest/download/panel.tar.gz"
 export WINGS_DL_URL="https://github.com/pterodactyl/wings/releases/latest/download/wings_linux_"
-export CONFIGS_URL="https://raw.githubusercontent.com/ForestRacks/PteroInstaller/master/configs"
+export GIT_REPO_URL="https://raw.githubusercontent.com/ForestRacks/PteroInstaller/Production/"
 
 # Colors
 COLOR_YELLOW='\033[1;33m'
@@ -37,115 +37,13 @@ MYSQL_DBHOST_HOST="127.0.0.1"
 MYSQL_DBHOST_USER="pterodactyluser"
 MYSQL_DBHOST_PASSWORD="${MYSQL_DBHOST_PASSWORD:-}"
 
-# -------------- Visual functions -------------- #
-output() {
-  echo -e "* $1"
-}
-
-success() {
-  echo ""
-  output "${COLOR_GREEN}SUCCESS${COLOR_NC}: $1"
-  echo ""
-}
-
-error() {
-  echo ""
-  echo -e "* ${COLOR_RED}ERROR${COLOR_NC}: $1" 1>&2
-  echo ""
-}
-
-warning() {
-  echo ""
-  output "${COLOR_YELLOW}WARNING${COLOR_NC}: $1"
-  echo ""
-}
-
-print_brake() {
-  for ((n=0;n<$1;n++));
-    do
-      echo -n "#"
-    done
-    echo ""
-}
-
-# --------------- OS detection ---------------- #
-# Detect OS
-if [ -f /etc/os-release ]; then
-  # freedesktop.org and systemd
-  . /etc/os-release
-  OS=$(echo "$ID" | awk '{print tolower($0)}')
-  OS_VER=$VERSION_ID
-elif type lsb_release >/dev/null 2>&1; then
-  # linuxbase.org
-  OS=$(lsb_release -si | awk '{print tolower($0)}')
-  OS_VER=$(lsb_release -sr)
-elif [ -f /etc/lsb-release ]; then
-  # For some versions of Debian/Ubuntu without lsb_release command
-  . /etc/lsb-release
-  OS=$(echo "$DISTRIB_ID" | awk '{print tolower($0)}')
-  OS_VER=$DISTRIB_RELEASE
-elif [ -f /etc/debian_version ]; then
-  # Older Debian/Ubuntu/etc.
-  OS="debian"
-  OS_VER=$(cat /etc/debian_version)
-elif [ -f /etc/SuSe-release ]; then
-  # Older SuSE/etc.
-  OS="SuSE"
-  OS_VER="?"
-elif [ -f /etc/redhat-release ]; then
-  # Older Red Hat, CentOS, etc.
-  OS="Red Hat/CentOS"
-  OS_VER="?"
-else
-  # Fall back to uname, e.g. "Linux <version>", also works for BSD, etc.
-  OS=$(uname -s)
-  OS_VER=$(uname -r)
-fi
-
-OS=$(echo "$OS" | awk '{print tolower($0)}')
-OS_VER_MAJOR=$(echo "$OS_VER" | cut -d. -f1)
-CPU_ARCHITECTURE=$(uname -m)
-
-case "$CPU_ARCHITECTURE" in
-x86_64)
-  ARCH=amd64
-  ;;
-arm64 | aarch64)
-  ARCH=arm64
-  ;;
-*)
-  error "Only x86_64 and arm64 are supported!"
-  exit 1
-  ;;
-esac
-
-case "$OS" in
-ubuntu)
-  [ "$OS_VER_MAJOR" == "20" ] && SUPPORTED=true
-  [ "$OS_VER_MAJOR" == "22" ] && SUPPORTED=true
-  [ "$OS_VER_MAJOR" == "24" ] && SUPPORTED=true
-  export DEBIAN_FRONTEND=noninteractive
-  ;;
-debian)
-  [ "$OS_VER_MAJOR" == "11" ] && SUPPORTED=true
-  [ "$OS_VER_MAJOR" == "12" ] && SUPPORTED=true
-  [ "$OS_VER_MAJOR" == "13" ] && SUPPORTED=true
-  export DEBIAN_FRONTEND=noninteractive
-  ;;
-rocky | almalinux)
-  [ "$OS_VER_MAJOR" == "8" ] && SUPPORTED=true
-  [ "$OS_VER_MAJOR" == "9" ] && SUPPORTED=true
-  ;;
-*)
-  SUPPORTED=false
-  ;;
-esac
-
-# Exit if OS not supported
-if [ "$SUPPORTED" == false ]; then
-  output "$OS $OS_VER is not supported"
-  error "Unsupported operating system"
-  exit 1
+# -------------- Load Lib -------------- #
+# Check if script is loaded, load if not or fail otherwise.
+fn_exists() { declare -F "$1" >/dev/null; }
+if ! fn_exists lib_loaded; then
+  # shellcheck source=lib/main.sh
+  source /tmp/main.sh || source <(curl -sSL "$GIT_REPO_URL"/lib/main.sh)
+  ! fn_exists lib_loaded && echo "* ERROR: Could not load lib script" && exit 1
 fi
 
 # -------------------- MYSQL ------------------- #
@@ -427,7 +325,7 @@ insert_cronjob() {
 pteroq_systemd() {
   output "Installing pteroq service.."
 
-  curl -o /etc/systemd/system/pteroq.service "$CONFIGS_URL"/pteroq.service
+  curl -o /etc/systemd/system/pteroq.service "$GIT_REPO_URL"/configs/pteroq.service
 
   case "$OS" in
   debian | ubuntu)
@@ -468,7 +366,7 @@ selinux_allow() {
 }
 
 php_fpm_conf() {
-  curl -o /etc/php-fpm.d/www-pterodactyl.conf "$CONFIGS_URL"/www-pterodactyl.conf
+  curl -o /etc/php-fpm.d/www-pterodactyl.conf "$GIT_REPO_URL"/configs/www-pterodactyl.conf
 
   systemctl enable php-fpm
   systemctl start php-fpm
@@ -568,7 +466,7 @@ configure_nginx() {
   esac
 
   rm -rf "$CONFIG_PATH_ENABL"/default
-  curl -o "$CONFIG_PATH_AVAIL"/pterodactyl.conf "$CONFIGS_URL"/nginx.conf
+  curl -o "$CONFIG_PATH_AVAIL"/pterodactyl.conf "$GIT_REPO_URL"/configs/nginx.conf
   sed -i -e "s@<domain>@${IP_ADDRESS}@g" "$CONFIG_PATH_AVAIL"/pterodactyl.conf
   sed -i -e "s@<php_socket>@${PHP_SOCKET}@g" "$CONFIG_PATH_AVAIL"/pterodactyl.conf
 
@@ -633,7 +531,7 @@ wings_dl() {
 wings_systemd() {
   output "Installing systemd service.."
 
-  curl -o /etc/systemd/system/wings.service "$CONFIGS_URL"/wings.service
+  curl -o /etc/systemd/system/wings.service "$GIT_REPO_URL"/configs/wings.service
   systemctl daemon-reload
   systemctl enable wings
 
