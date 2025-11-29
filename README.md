@@ -2,7 +2,7 @@
 Welcome to the ForestRacks Pterodactyl Installer repository! This installer is specifically designed for ForestRacks customers to easily install and set up the Pterodactyl Panel on Debian-based or RHEL-based machines. If you encounter any issues during the installation process, our troubleshooting section has some helpful tips.
 
 ## Installation:
-1) To get started, it's important to ensure that your machine is freshly reinstalled if you've made any changes to it beforehand. 
+1) To get started, it's important to ensure that your machine is freshly reinstalled if you've made any changes to it beforehand.
 2) Point a DNS A-Record to your machine's IP address, such as panel.forestracks.com to 192.168.53.72.
 3) To download and run the installer, simply enter the following command into your terminal and follow the prompts:
 ```
@@ -19,16 +19,16 @@ bash <(curl -Ss https://raw.githubusercontent.com/ForestRacks/PteroInstaller/Pro
 ## Compatible Operating Systems:
 | Operating System | Version | Supported          | PHP Version |
 | ---------------- | ------- | ------------------ | ----------- |
-| Ubuntu           | 20.04   | :white_check_mark: | 8.3         |
-|                  | 22.04   | :white_check_mark: | 8.3         |
-|                  | 24.04   | :white_check_mark: | 8.3         |
-| Debian           | 11      | :white_check_mark: | 8.3         |
-|                  | 12      | :white_check_mark: | 8.3         |
+| Ubuntu           | 20.04   | :white_check_mark: | 8.4         |
+|                  | 22.04   | :white_check_mark: | 8.4         |
+|                  | 24.04   | :white_check_mark: | 8.4         |
+| Debian           | 11      | :white_check_mark: | 8.4         |
+|                  | 12      | :white_check_mark: | 8.4         |
 |                  | 13      | :red_circle: \*    |             |
-| Rocky Linux      | 8       | :white_check_mark: | 8.3         |
-|                  | 9       | :white_check_mark: | 8.3         |
-| AlmaLinux        | 8       | :white_check_mark: | 8.3         |
-|                  | 9       | :white_check_mark: | 8.3         |
+| Rocky Linux      | 8       | :white_check_mark: | 8.4         |
+|                  | 9       | :white_check_mark: | 8.4         |
+| AlmaLinux        | 8       | :white_check_mark: | 8.4         |
+|                  | 9       | :white_check_mark: | 8.4         |
 
 ## Contributors ✨
 
