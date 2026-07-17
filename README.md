@@ -6,7 +6,7 @@ Welcome to the ForestRacks Pterodactyl Installer repository! This installer is s
 2) Point a DNS A-Record to your machine's IP address, such as panel.forestracks.com to 192.168.53.72.
 3) To download and run the installer, simply enter the following command into your terminal and follow the prompts:
 ```
-bash <(curl -Ss https://raw.githubusercontent.com/ForestRacks/PteroInstaller/Production/install.sh || wget -O - https://raw.githubusercontent.com/ForestRacks/PteroInstaller/Production/install.sh) auto
+bash <(curl -Ss https://raw.githubusercontent.com/ForestRacks/PteroInstaller/Production/install.sh || wget -O - https://raw.githubusercontent.com/ForestRacks/PteroInstaller/Production/install.sh)
 ```
 ## Post Installation:
 * Please note "example.com" refers to the panel URL you set during the installation process.
@@ -19,16 +19,17 @@ bash <(curl -Ss https://raw.githubusercontent.com/ForestRacks/PteroInstaller/Pro
 ## Compatible Operating Systems:
 | Operating System | Version | Supported          | PHP Version |
 | ---------------- | ------- | ------------------ | ----------- |
-| Ubuntu           | 20.04   | :white_check_mark: | 8.4         |
-|                  | 22.04   | :white_check_mark: | 8.4         |
-|                  | 24.04   | :white_check_mark: | 8.4         |
-| Debian           | 11      | :white_check_mark: | 8.4         |
-|                  | 12      | :white_check_mark: | 8.4         |
+| Ubuntu           | 20.04   | :white_check_mark: | 8.5         |
+|                  | 22.04   | :white_check_mark: | 8.5         |
+|                  | 24.04   | :white_check_mark: | 8.5         |
+|                  | 26.04   | :white_check_mark: | 8.5         |
+| Debian           | 11      | :white_check_mark: | 8.5         |
+|                  | 12      | :white_check_mark: | 8.5         |
 |                  | 13      | :red_circle: \*    |             |
-| Rocky Linux      | 8       | :white_check_mark: | 8.4         |
-|                  | 9       | :white_check_mark: | 8.4         |
-| AlmaLinux        | 8       | :white_check_mark: | 8.4         |
-|                  | 9       | :white_check_mark: | 8.4         |
+| Rocky Linux      | 8       | :white_check_mark: | 8.5         |
+|                  | 9       | :white_check_mark: | 8.5         |
+| AlmaLinux        | 8       | :white_check_mark: | 8.5         |
+|                  | 9       | :white_check_mark: | 8.5         |
 
 ## Contributors ✨
 
