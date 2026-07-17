@@ -208,6 +208,8 @@ configure_env() {
 
   # Replace the egg docker images with ForestRacks's optimized images
   for file in /var/www/pterodactyl/database/Seeders/eggs/*/*.json; do
+    # Skip when nothing is matched
+    [ -e "$file" ] || continue
     # Extract the docker_images field from the file using jq
     docker_images=$(jq -r '.docker_images' "$file")
 
