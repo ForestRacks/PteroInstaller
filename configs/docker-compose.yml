@@ -26,7 +26,7 @@ services:
     restart: always
     command: --default-authentication-plugin=mysql_native_password
     volumes:
-      - "/opt/pterodactyl/database:/var/lib/mysql"
+      - "./database:/var/lib/mysql"
     environment:
       <<: *db-environment
       MYSQL_DATABASE: "panel"
@@ -44,10 +44,10 @@ services:
       - database
       - cache
     volumes:
-      - "/opt/pterodactyl/var/:/app/var/"
-      - "/opt/pterodactyl/nginx/:/etc/nginx/http.d/"
-      - "/opt/pterodactyl/certs/:/etc/letsencrypt/"
-      - "/opt/pterodactyl/logs/:/app/storage/logs"
+      - "./var/:/app/var/"
+      - "./nginx/:/etc/nginx/http.d/"
+      - "./certs/:/etc/letsencrypt/"
+      - "./logs/:/app/storage/logs"
     environment:
       <<: [*panel-environment, *mail-environment]
       DB_PASSWORD: *db-password

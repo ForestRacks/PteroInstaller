@@ -59,7 +59,7 @@ collect_input() {
   fi
 
   # Password for the admin account and database
-  password_input USER_PASSWORD "Admin Password (press enter to use randomly generated password): " "" "$(rand 32)"
+  password_input USER_PASSWORD "Password for the admin account (blank for auto-generate): " "" "$(rand 32)"
 
   TIMEZONE="$(cat /etc/timezone 2>/dev/null || echo UTC)"
   HASHIDS_SALT="$(rand 20)"

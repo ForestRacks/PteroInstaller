@@ -234,7 +234,7 @@ configure_env() {
     --telemetry=false \
     --author="admin@example.com" \
     --url="$app_url" \
-    --timezone="America/Chicago" \
+    --timezone="UTC" \
     --cache="redis" \
     --session="redis" \
     --queue="redis" \

@@ -38,7 +38,7 @@ COLOR_NC='\033[0m'
 email_regex="^(([A-Za-z0-9]+((\.|\-|\_|\+)?[A-Za-z0-9]?)*[A-Za-z0-9]+)|[A-Za-z0-9]+)@(([A-Za-z0-9]+)+((\.|\-|\_)?([A-Za-z0-9]+)+)*)+\.([A-Za-z]{2,})+$"
 
 # Charset used to generate random passwords
-password_charset='A-Za-z0-9!"#%&()*+,-./:;<=>?@[\]^_`{|}~'
+password_charset='A-Za-z0-9'
 
 # --------------------- Lib -------------------- #
 lib_loaded() {

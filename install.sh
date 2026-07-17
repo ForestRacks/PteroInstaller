@@ -147,7 +147,7 @@ while [ -z "$panel_mode" ]; do
   output "What Panel installation mode would you like to use?"
   output "[0] Skip - Do not install the panel (default)"
   output "[1] Basic - Zero prompts, development environment (panel + wings, HTTP-only)"
-  output "[2] Docker (Recommended) - docker compose using the official ghcr images"
+  output "[2] Docker (Recommended) - Docker compose using the official ghcr images"
   output "[3] Bare metal - Standard install without Docker (prompts for FQDN/SSL)"
 
   echo -n "* Input 0-3 [0]: "
