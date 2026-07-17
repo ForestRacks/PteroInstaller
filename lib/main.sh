@@ -3,6 +3,9 @@
 set -e
 
 # ------------------ Variables ----------------- #
+# Versioning
+export SCRIPT_RELEASE=${SCRIPT_RELEASE:-canary}
+
 # Pterodactyl versions
 export PTERODACTYL_PANEL_VERSION=""
 export PTERODACTYL_WINGS_VERSION=""
@@ -17,10 +20,13 @@ export CPU_ARCHITECTURE=""
 export ARCH=""
 export SUPPORTED=false
 
-# download URLs
-export PANEL_DL_URL="https://github.com/pterodactyl/panel/releases/latest/download/panel.tar.gz"
+# Download URLs
+export PANEL_DL_URL="${PANEL_DL_URL:-https://github.com/pterodactyl/panel/releases/latest/download/panel.tar.gz}"
 export WINGS_DL_URL="https://github.com/pterodactyl/wings/releases/latest/download/wings_linux_"
-export GIT_REPO_URL="https://raw.githubusercontent.com/ForestRacks/PteroInstaller/Production"
+# Repo arg defaults
+export REPO="${REPO:-ForestRacks/PteroInstaller}"
+export BRANCH="${BRANCH:-Production}"
+export GIT_REPO_URL="${GIT_REPO_URL:-https://raw.githubusercontent.com/$REPO/$BRANCH}"
 
 # Colors
 COLOR_YELLOW='\033[1;33m'
@@ -28,20 +34,18 @@ COLOR_GREEN='\033[0;32m'
 COLOR_RED='\033[0;31m'
 COLOR_NC='\033[0m'
 
-# email input validation regex
+# Email input validation regex
 email_regex="^(([A-Za-z0-9]+((\.|\-|\_|\+)?[A-Za-z0-9]?)*[A-Za-z0-9]+)|[A-Za-z0-9]+)@(([A-Za-z0-9]+)+((\.|\-|\_)?([A-Za-z0-9]+)+)*)+\.([A-Za-z]{2,})+$"
 
 # Charset used to generate random passwords
 password_charset='A-Za-z0-9!"#%&()*+,-./:;<=>?@[\]^_`{|}~'
 
 # --------------------- Lib -------------------- #
-
 lib_loaded() {
   return 0
 }
 
 # -------------- Visual functions -------------- #
-
 output() {
   echo -e "* $1"
 }
@@ -69,7 +73,7 @@ print_brake() {
     echo -n "#"
   done
   echo ""
-} 
+}
 
 print_list() {
   print_brake 30
@@ -84,8 +88,30 @@ hyperlink() {
   echo -e "\e]8;;${1}\a${1}\e]8;;\a"
 }
 
-# ---------------- Lib functions --------------- #
+# First argument is wings / panel / neither
+welcome() {
+  get_latest_versions
 
+  print_brake 70
+  output "Pterodactyl Panel installation script @ $SCRIPT_RELEASE"
+  output ""
+  output "Copyright (C) 2018 - 2024, Vilhelm Prytz, <vilhelm@prytznet.se>"
+  output "Copyright (C) 2022 - 2026, ForestRacks, <contact+oss@forestracks.com>"
+  output "https://github.com/ForestRacks/PteroInstaller"
+  output ""
+  output "This script is not associated with the official Pterodactyl Project."
+  output ""
+  output "Using repo $REPO (branch $BRANCH)."
+  output "Running $OS version $OS_VER."
+  if [ "$1" == "panel" ]; then
+    output "Latest pterodactyl/panel is $PTERODACTYL_PANEL_VERSION"
+  elif [ "$1" == "wings" ]; then
+    output "Latest pterodactyl/wings is $PTERODACTYL_WINGS_VERSION"
+  fi
+  print_brake 70
+}
+
+# ---------------- Lib functions --------------- #
 get_latest_release() {
   curl -sL "https://api.github.com/repos/$1/releases/latest" | # Get latest release from GitHub api
     grep '"tag_name":' |                                       # Get tag line
@@ -93,20 +119,20 @@ get_latest_release() {
 }
 
 get_latest_versions() {
-  output "Retrieving release information..."
+  output "Retrieving release information .."
   PTERODACTYL_PANEL_VERSION=$(get_latest_release "pterodactyl/panel")
   PTERODACTYL_WINGS_VERSION=$(get_latest_release "pterodactyl/wings")
 }
 
 update_lib_source() {
   rm -rf /tmp/main.sh
-  curl -sSL -o /tmp/main.sh "$GIT_REPO_URL"/lib/main.sh
+  curl -fsSL -o /tmp/main.sh "$GIT_REPO_URL"/lib/main.sh
   # shellcheck source=lib/main.sh
   source /tmp/main.sh
 }
 
 run_installer() {
-  bash <(curl -sSL "$GIT_REPO_URL/modes/$1.sh")
+  bash <(curl -fsSL "$GIT_REPO_URL/modes/$1.sh")
 }
 
 array_contains_element() {
@@ -135,13 +161,12 @@ gen_passwd() {
 }
 
 # -------------------- MYSQL ------------------- #
-
 create_db_user() {
   local db_user_name="$1"
   local db_user_password="$2"
   local db_host="${3:-127.0.0.1}"
 
-  output "Creating database user $db_user_name..."
+  output "Creating database user $db_user_name .."
 
   mariadb -u root -e "CREATE USER '$db_user_name'@'$db_host' IDENTIFIED BY '$db_user_password';"
   mariadb -u root -e "FLUSH PRIVILEGES;"
@@ -154,7 +179,7 @@ grant_all_privileges() {
   local db_user_name="$2"
   local db_host="${3:-127.0.0.1}"
 
-  output "Granting all privileges on $db_name to $db_user_name..."
+  output "Granting all privileges on $db_name to $db_user_name .."
 
   mariadb -u root -e "GRANT ALL PRIVILEGES ON $db_name.* TO '$db_user_name'@'$db_host' WITH GRANT OPTION;"
   mariadb -u root -e "FLUSH PRIVILEGES;"
@@ -168,7 +193,7 @@ create_db() {
   local db_user_name="$2"
   local db_host="${3:-127.0.0.1}"
 
-  output "Creating database $db_name..."
+  output "Creating database $db_name .."
 
   mariadb -u root -e "CREATE DATABASE $db_name;"
   grant_all_privileges "$db_name" "$db_user_name" "$db_host"
@@ -177,14 +202,13 @@ create_db() {
 }
 
 # --------------- Package Manager -------------- #
-
 # Argument for quite mode
 update_repos() {
   local args=""
   [[ $1 == true ]] && args="-qq"
   case "$OS" in
-  ubuntu | debian)
-    apt-get -y $args update
+  debian | ubuntu)
+    apt -y $args update
     ;;
   *)
     # Do nothing as AlmaLinux and RockyLinux update metadata before installing packages.
@@ -197,24 +221,23 @@ install_packages() {
   local args=""
   if [[ $2 == true ]]; then
     case "$OS" in
-    ubuntu | debian) args="-qq" ;;
+    debian | ubuntu) args="-qq" ;;
     *) args="-q" ;;
     esac
   fi
 
   # Eval needed for proper expansion of arguments
   case "$OS" in
-  ubuntu | debian)
-    eval apt-get -y $args install "$1"
+  debian | ubuntu)
+    eval apt -y $args install "$1"
     ;;
-  rocky | almalinux)
+  almalinux | rocky)
     eval dnf -y $args install "$1"
     ;;
   esac
 }
 
 # ------------ User input functions ------------ #
-
 required_input() {
   local __resultvar=$1
   local result=''
@@ -255,7 +278,7 @@ password_input() {
   while [ -z "$result" ]; do
     echo -n "* ${2}"
 
-    # modified from https://stackoverflow.com/a/22940001
+    # Modified from https://stackoverflow.com/a/22940001
     while IFS= read -r -s -n1 char; do
       [[ -z $char ]] && {
         printf '\n'
@@ -284,12 +307,11 @@ password_input() {
 }
 
 # ------------------ Firewall ------------------ #
-
 ask_firewall() {
   local __resultvar=$1
 
   case "$OS" in
-  ubuntu | debian)
+  debian | ubuntu)
     echo -e -n "* Do you want to automatically configure UFW (firewall)? (y/N): "
     read -r CONFIRM_UFW
 
@@ -297,7 +319,7 @@ ask_firewall() {
       eval "$__resultvar="'true'""
     fi
     ;;
-  rocky | almalinux)
+  almalinux | rocky)
     echo -e -n "* Do you want to automatically configure firewall-cmd (firewall)? (y/N): "
     read -r CONFIRM_FIREWALL_CMD
 
@@ -310,7 +332,7 @@ ask_firewall() {
 
 install_firewall() {
   case "$OS" in
-  ubuntu | debian)
+  debian | ubuntu)
     output ""
     output "Installing Uncomplicated Firewall (UFW)"
 
@@ -324,10 +346,10 @@ install_firewall() {
     success "Enabled Uncomplicated Firewall (UFW)"
 
     ;;
-  rocky | almalinux)
+  almalinux | rocky)
 
     output ""
-    output "Installing FirewallD"+
+    output "Installing FirewallD"
 
     if ! [ -x "$(command -v firewall-cmd)" ]; then
       install_packages "firewalld" true
@@ -343,13 +365,13 @@ install_firewall() {
 
 firewall_allow_ports() {
   case "$OS" in
-  ubuntu | debian)
+  debian | ubuntu)
     for port in $1; do
       ufw allow "$port"
     done
     ufw --force reload
     ;;
-  rocky | almalinux)
+  almalinux | rocky)
     for port in $1; do
       firewall-cmd --zone=public --add-port="$port"/tcp --permanent
     done
@@ -359,8 +381,7 @@ firewall_allow_ports() {
 }
 
 # ---------------- System checks --------------- #
-
-# panel x86_64 check
+# Panel x86_64 check
 check_os_x86_64() {
   if [ "${ARCH}" != "amd64" ]; then
     warning "Detected CPU architecture $CPU_ARCHITECTURE"
@@ -376,9 +397,9 @@ check_os_x86_64() {
   fi
 }
 
-# wings virtualization check
+# Wings virtualization check
 check_virt() {
-  output "Installing virt-what..."
+  output "Installing virt-what .."
 
   update_repos true
   install_packages "virt-what" true
@@ -472,15 +493,17 @@ ubuntu)
   [ "$OS_VER_MAJOR" == "20" ] && SUPPORTED=true
   [ "$OS_VER_MAJOR" == "22" ] && SUPPORTED=true
   [ "$OS_VER_MAJOR" == "24" ] && SUPPORTED=true
+  [ "$OS_VER_MAJOR" == "26" ] && SUPPORTED=true
   export DEBIAN_FRONTEND=noninteractive
   ;;
 debian)
   [ "$OS_VER_MAJOR" == "10" ] && SUPPORTED=true
   [ "$OS_VER_MAJOR" == "11" ] && SUPPORTED=true
   [ "$OS_VER_MAJOR" == "12" ] && SUPPORTED=true
+  [ "$OS_VER_MAJOR" == "13" ] && SUPPORTED=true
   export DEBIAN_FRONTEND=noninteractive
   ;;
-rocky | almalinux)
+almalinux | rocky)
   [ "$OS_VER_MAJOR" == "8" ] && SUPPORTED=true
   [ "$OS_VER_MAJOR" == "9" ] && SUPPORTED=true
   ;;
@@ -489,7 +512,7 @@ rocky | almalinux)
   ;;
 esac
 
-# exit if not supported
+# Exit if not supported
 if [ "$SUPPORTED" == false ]; then
   output "$OS $OS_VER is not supported"
   error "Unsupported operating system"

@@ -1,21 +1,21 @@
 #!/bin/bash
 
-# Pterodactyl Installer 
-# Copyright Forestracks 2022-2025
+# Pterodactyl Installer
+# Copyright Forestracks 2022-2026
 
+set -e
 
 # Check if script is loaded, load if not or fail otherwise.
 fn_exists() { declare -F "$1" >/dev/null; }
 if ! fn_exists lib_loaded; then
   # shellcheck source=lib/main.sh
-  source <(curl -sSL "$GIT_REPO_URL"/lib/main.sh)
+  source /tmp/main.sh || source <(curl -fsSL "$GIT_REPO_URL"/lib/main.sh)
   ! fn_exists lib_loaded && echo "* ERROR: Could not load lib script" && exit 1
 fi
 
 # ------------------ Variables ----------------- #
-
 # Domain name / IP
-export FQDN=""
+export HOSTNAME=""
 
 # Default MySQL credentials
 export MYSQL_DB=""
@@ -41,9 +41,8 @@ export CONFIGURE_LETSENCRYPT=false
 export CONFIGURE_FIREWALL=false
 
 # ------------ User input functions ------------ #
-
 ask_letsencrypt() {
-  if [ "$CONFIGURE_UFW" == false ] && [ "$CONFIGURE_FIREWALL_CMD" == false ]; then
+  if [ "$CONFIGURE_FIREWALL" == false ]; then
     warning "Let's Encrypt requires port 80/443 to be opened! You have opted out of the automatic firewall configuration; use this at your own risk (if port 80/443 is closed, the script will fail)!"
   fi
 
@@ -68,7 +67,7 @@ ask_assume_ssl() {
 }
 
 check_FQDN_SSL() {
-  if [[ $(invalid_ip "$FQDN") == 1 && $FQDN != 'localhost' ]]; then
+  if [[ $(invalid_ip "$HOSTNAME") == 1 && $HOSTNAME != 'localhost' ]]; then
     SSL_AVAILABLE=true
   else
     warning "* Let's Encrypt will not be available for IP addresses."
@@ -76,10 +75,374 @@ check_FQDN_SSL() {
   fi
 }
 
-ui() {
+# --------- Main installation functions -------- #
+install_composer() {
+  output "Installing composer .."
+  curl -fsS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
+  success "Composer installed!"
+}
+
+ptdl_dl() {
+  output "Downloading Pterodactyl Panel files .. "
+  mkdir -p /var/www/pterodactyl
+  cd /var/www/pterodactyl || exit
+
+  curl -Lo panel.tar.gz "$PANEL_DL_URL"
+  tar -xzvf panel.tar.gz
+  chmod -R 755 storage/* bootstrap/cache/
+
+  cp .env.example .env
+
+  success "Downloaded Pterodactyl Panel files!"
+}
+
+install_composer_deps() {
+  output "Installing composer dependencies .."
+  [ "$OS" == "rocky" ] || [ "$OS" == "almalinux" ] && export PATH=/usr/local/bin:$PATH
+  COMPOSER_ALLOW_SUPERUSER=1 composer install --no-dev --optimize-autoloader
+  success "Installed composer dependencies!"
+}
+
+# Configure environment
+configure() {
+  output "Configuring environment .."
+
+  local app_url="http://$HOSTNAME"
+  [ "$ASSUME_SSL" == true ] && app_url="https://$HOSTNAME"
+  [ "$CONFIGURE_LETSENCRYPT" == true ] && app_url="https://$HOSTNAME"
+
+  # Generate encryption key
+  php artisan key:generate --force
+
+  # Fill in environment:setup automatically
+  php artisan p:environment:setup \
+    --author="$email" \
+    --url="$app_url" \
+    --timezone="$timezone" \
+    --cache="redis" \
+    --session="redis" \
+    --queue="redis" \
+    --redis-host="localhost" \
+    --redis-pass="null" \
+    --redis-port="6379" \
+    --settings-ui=true
+
+  # Fill in environment:database credentials automatically
+  php artisan p:environment:database \
+    --host="127.0.0.1" \
+    --port="3306" \
+    --database="$MYSQL_DB" \
+    --username="$MYSQL_USER" \
+    --password="$MYSQL_PASSWORD"
+
+  # Configure database
+  php artisan migrate --seed --force
+
+  # Create user account
+  php artisan p:user:make \
+    --email="$user_email" \
+    --username="$user_username" \
+    --name-first="$user_firstname" \
+    --name-last="$user_lastname" \
+    --password="$user_password" \
+    --admin=1
+
+  success "Configured environment!"
+}
+
+# Set proper directory permissions for distro
+set_folder_permissions() {
+  # Assign directory user
+  case "$OS" in
+  debian | ubuntu)
+    chown -R www-data:www-data ./
+    ;;
+  almalinux | rocky)
+    chown -R nginx:nginx ./
+    ;;
+  esac
+}
+
+insert_cronjob() {
+  output "Installing cronjob.. "
+
+  local web_user
+  case "$OS" in
+  debian | ubuntu)
+    web_user="www-data"
+    ;;
+  almalinux | rocky)
+    web_user="nginx"
+    ;;
+  esac
+
+  (crontab -u "$web_user" -l 2>/dev/null || true) | {
+    cat
+    echo "* * * * * php /var/www/pterodactyl/artisan schedule:run >> /dev/null 2>&1"
+  } | crontab -u "$web_user" -
+
+  success "Cronjob installed!"
+}
+
+install_pteroq() {
+  output "Installing pteroq service .."
+
+  curl -o /etc/systemd/system/pteroq.service "$GIT_REPO_URL"/configs/pteroq.service
+
+  case "$OS" in
+  debian | ubuntu)
+    sed -i -e "s@<user>@www-data@g" /etc/systemd/system/pteroq.service
+    ;;
+  almalinux | rocky)
+    sed -i -e "s@<user>@nginx@g" /etc/systemd/system/pteroq.service
+    ;;
+  esac
+
+  systemctl daemon-reload
+  systemctl enable pteroq.service
+  systemctl start pteroq
+
+  success "Installed pteroq!"
+}
+
+# -------- OS specific install functions ------- #
+enable_services() {
+  case "$OS" in
+  debian | ubuntu)
+    systemctl enable redis-server
+    systemctl start redis-server
+    ;;
+  almalinux | rocky)
+    systemctl enable redis
+    systemctl start redis
+    ;;
+  esac
+  systemctl enable nginx
+  systemctl enable mariadb
+  systemctl start mariadb
+}
+
+selinux_allow() {
+  setsebool -P httpd_can_network_connect 1 || true # these commands can fail OK
+  setsebool -P httpd_execmem 1 || true
+  setsebool -P httpd_unified 1 || true
+}
+
+php_fpm_conf() {
+  curl -o /etc/php-fpm.d/www-pterodactyl.conf "$GIT_REPO_URL"/configs/www-pterodactyl.conf
+
+  systemctl enable php-fpm
+  systemctl start php-fpm
+}
+
+ubuntu_dep() {
+  # Install deps for adding repos
+  install_packages "software-properties-common apt-transport-https ca-certificates gnupg"
+
+  # Add Ubuntu universe repo
+  add-apt-repository universe -y
+
+  # Add PHP PPA
+  if curl -fsSL "https://ppa.launchpadcontent.net/ondrej/php/ubuntu/dists/${UBUNTU_CODENAME}/Release" >/dev/null; then
+    LC_ALL=C.UTF-8 add-apt-repository -y ppa:ondrej/php
+  else
+    warning "Ondrej PHP PPA does not support ${UBUNTU_CODENAME}; using Ubuntu packages."
+  fi
+}
+
+debian_dep() {
+  # Install deps for adding repos
+  install_packages "dirmngr ca-certificates apt-transport-https lsb-release"
+
+  # Install PHP 8.5 using sury's repo
+  curl -o /etc/apt/trusted.gpg.d/php.gpg https://packages.sury.org/php/apt.gpg
+  echo "deb https://packages.sury.org/php/ $(lsb_release -sc) main" | tee /etc/apt/sources.list.d/php.list
+}
+
+alma_rocky_dep() {
+  # SELinux tools
+  install_packages "policycoreutils selinux-policy selinux-policy-targeted \
+    setroubleshoot-server setools setools-console mcstrans"
+
+  # Add remi repo
+  install_packages "epel-release http://rpms.remirepo.net/enterprise/remi-release-$OS_VER_MAJOR.rpm"
+  dnf module enable -y php:remi-8.5
+}
+
+dep_install() {
+  output "Installing dependencies for $OS $OS_VER .."
+
+  # Update repos before installing
+  update_repos
+
+  [ "$CONFIGURE_FIREWALL" == true ] && install_firewall && firewall_ports
+
+  case "$OS" in
+  debian | ubuntu)
+    [ "$OS" == "ubuntu" ] && ubuntu_dep
+    [ "$OS" == "debian" ] && debian_dep
+
+    update_repos
+
+    # Install dependencies
+    install_packages "php8.5 php8.5-{cli,common,gd,mysql,mbstring,bcmath,xml,fpm,curl,zip} \
+      mariadb-common mariadb-server mariadb-client \
+      nginx \
+      redis-server \
+      zip unzip tar \
+      git cron"
+
+    [ "$CONFIGURE_LETSENCRYPT" == true ] && install_packages "certbot python3-certbot-nginx"
+
+    ;;
+  almalinux | rocky)
+    alma_rocky_dep
+
+    # Install dependencies
+    install_packages "php php-{common,fpm,cli,json,mysqlnd,mcrypt,gd,mbstring,pdo,zip,bcmath,dom,opcache,posix} \
+      mariadb mariadb-server \
+      nginx \
+      redis \
+      zip unzip tar \
+      git cronie"
+
+    [ "$CONFIGURE_LETSENCRYPT" == true ] && install_packages "certbot python3-certbot-nginx"
+
+    # Allow nginx
+    selinux_allow
+
+    # Create config for PHP FPM
+    php_fpm_conf
+    ;;
+  esac
+
+  enable_services
+
+  success "Dependencies installed!"
+}
+
+# --------------- Other functions -------------- #
+firewall_ports() {
+  output "Opening ports: 22 (SSH), 80 (HTTP) and 443 (HTTPS)"
+
+  firewall_allow_ports "22 80 443"
+
+  success "Firewall ports opened!"
+}
+
+letsencrypt() {
+  FAILED=false
+
+  output "Configuring Let's Encrypt .."
+
+  # Obtain certificate
+  certbot --nginx --redirect --no-eff-email --email "$email" -d "$HOSTNAME" || FAILED=true
+
+  # Check if it succeded
+  if [ ! -d "/etc/letsencrypt/live/$HOSTNAME/" ] || [ "$FAILED" == true ]; then
+    warning "The process of obtaining a Let's Encrypt certificate failed!"
+    echo -n "* Still assume SSL? (y/N): "
+    read -r CONFIGURE_SSL
+
+    if [[ "$CONFIGURE_SSL" =~ [Yy] ]]; then
+      ASSUME_SSL=true
+      CONFIGURE_LETSENCRYPT=false
+      configure_nginx
+    else
+      ASSUME_SSL=false
+      CONFIGURE_LETSENCRYPT=false
+    fi
+  else
+    success "The process of obtaining a Let's Encrypt certificate succeeded!"
+  fi
+}
+
+# ------ Webserver configuration functions ----- #
+configure_nginx() {
+  output "Configuring nginx .."
+
+  if [ "$ASSUME_SSL" == true ] && [ "$CONFIGURE_LETSENCRYPT" == false ]; then
+    DL_FILE="nginx_ssl.conf"
+  else
+    DL_FILE="nginx.conf"
+  fi
+
+  case "$OS" in
+  debian | ubuntu)
+    PHP_SOCKET="/run/php/php8.5-fpm.sock"
+    CONFIG_PATH_AVAIL="/etc/nginx/sites-available"
+    CONFIG_PATH_ENABL="/etc/nginx/sites-enabled"
+    ;;
+  almalinux | rocky)
+    PHP_SOCKET="/var/run/php-fpm/pterodactyl.sock"
+    CONFIG_PATH_AVAIL="/etc/nginx/conf.d"
+    CONFIG_PATH_ENABL="$CONFIG_PATH_AVAIL"
+    ;;
+  esac
+
+  rm -rf "$CONFIG_PATH_ENABL"/default
+
+  curl -o "$CONFIG_PATH_AVAIL"/pterodactyl.conf "$GIT_REPO_URL"/configs/$DL_FILE
+
+  sed -i -e "s@<domain>@${HOSTNAME}@g" "$CONFIG_PATH_AVAIL"/pterodactyl.conf
+
+  sed -i -e "s@<php_socket>@${PHP_SOCKET}@g" "$CONFIG_PATH_AVAIL"/pterodactyl.conf
+
+  case "$OS" in
+  debian | ubuntu)
+    ln -sf "$CONFIG_PATH_AVAIL"/pterodactyl.conf "$CONFIG_PATH_ENABL"/pterodactyl.conf
+    ;;
+  esac
+
+  if [ "$ASSUME_SSL" == true ] && [ "$CONFIGURE_LETSENCRYPT" == false ]; then
+    if nginx -t; then
+      systemctl restart nginx
+    else
+      warning "Nginx configuration was written but not reloaded. Install the SSL certificate files and restart nginx."
+    fi
+  else
+    nginx -t
+    systemctl restart nginx
+  fi
+
+  success "Nginx configured!"
+}
+
+# --------------- Main functions --------------- #
+perform_install() {
+  output "Starting installation.. this might take a while!"
+  dep_install
+  install_composer
+  ptdl_dl
+  install_composer_deps
+  create_db_user "$MYSQL_USER" "$MYSQL_PASSWORD"
+  create_db "$MYSQL_DB" "$MYSQL_USER"
+  configure
+  insert_cronjob
+  install_pteroq
+  configure_nginx
+  [ "$CONFIGURE_LETSENCRYPT" == true ] && letsencrypt
+  set_folder_permissions
+  return 0
+}
+
+main() {
+  # Check for existing installation
+  if [ -d "/var/www/pterodactyl" ]; then
+    warning "The script has detected that you already have Pterodactyl panel on your system! You cannot run the script multiple times, it will fail!"
+    echo -e -n "* Are you sure you want to proceed? (y/N): "
+    read -r CONFIRM_PROCEED || true
+    if [[ ! "$CONFIRM_PROCEED" =~ [Yy] ]]; then
+      error "Installation aborted!"
+      exit 1
+    fi
+  fi
+
+  welcome "panel"
+
   check_os_x86_64
 
-  # set database credentials
+  # Set database credentials
   output "Database configuration."
   output ""
   output "This will be the credentials used for communication between the MySQL"
@@ -125,11 +488,11 @@ ui() {
 
   print_brake 72
 
-  # set FQDN
-  while [ -z "$FQDN" ]; do
+  # Set FQDN
+  while [ -z "$HOSTNAME" ]; do
     echo -n "* Set the FQDN of this panel (panel.example.com): "
-    read -r FQDN
-    [ -z "$FQDN" ] && error "FQDN cannot be empty"
+    read -r HOSTNAME
+    [ -z "$HOSTNAME" ] && error "FQDN cannot be empty"
   done
 
   # Check if SSL is available
@@ -146,417 +509,22 @@ ui() {
     [ "$CONFIGURE_LETSENCRYPT" == false ] && ask_assume_ssl
   fi
 
-  # verify FQDN if user has selected to assume SSL or configure Let's Encrypt
-  [ "$CONFIGURE_LETSENCRYPT" == true ] || [ "$ASSUME_SSL" == true ] && bash <(curl -s "$GIT_REPO_URL"/lib/fqdn.sh) "$FQDN"
+  # Verify FQDN if user has selected to assume SSL or configure Let's Encrypt
+  [ "$CONFIGURE_LETSENCRYPT" == true ] || [ "$ASSUME_SSL" == true ] && bash <(curl -fsSL "$GIT_REPO_URL"/lib/fqdn.sh) "$HOSTNAME"
 
-  # summary
+  # Summary
   summary
 
-  # confirm installation
+  # Confirm installation
   echo -e -n "\n* Initial configuration completed. Continue with installation? (y/N): "
   read -r CONFIRM
   if [[ "$CONFIRM" =~ [Yy] ]]; then
-    run_installer "panel"
+    perform_install
   else
     error "Installation aborted."
     exit 1
   fi
 }
-
-# ------------------ Variables ----------------- #
-
-# Domain name / IP
-FQDN="${FQDN:-localhost}"
-
-# Default MySQL credentials
-MYSQL_DB="${MYSQL_DB:-panel}"
-MYSQL_USER="${MYSQL_USER:-pterodactyl}"
-MYSQL_PASSWORD="${MYSQL_PASSWORD:-$(gen_passwd 64)}"
-
-# Environment
-timezone="${timezone:-America/Chicago}"
-
-# Assume SSL, will fetch different config if true
-ASSUME_SSL="${ASSUME_SSL:-false}"
-CONFIGURE_LETSENCRYPT="${CONFIGURE_LETSENCRYPT:-false}"
-
-# Firewall
-CONFIGURE_FIREWALL="${CONFIGURE_FIREWALL:-false}"
-
-# Must be assigned to work, no default values
-email="${email:-}"
-user_email="${user_email:-}"
-user_username="${user_username:-}"
-user_firstname="${user_firstname:-}"
-user_lastname="${user_lastname:-}"
-user_password="${user_password:-}"
-
-if [[ -z "${email}" ]]; then
-  error "Email is required"
-  exit 1
-fi
-
-if [[ -z "${user_email}" ]]; then
-  error "User email is required"
-  exit 1
-fi
-
-if [[ -z "${user_username}" ]]; then
-  error "User username is required"
-  exit 1
-fi
-
-if [[ -z "${user_firstname}" ]]; then
-  error "User firstname is required"
-  exit 1
-fi
-
-if [[ -z "${user_lastname}" ]]; then
-  error "User lastname is required"
-  exit 1
-fi
-
-if [[ -z "${user_password}" ]]; then
-  error "User password is required"
-  exit 1
-fi
-
-# --------- Main installation functions -------- #
-
-install_composer() {
-  output "Installing composer.."
-  curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
-  success "Composer installed!"
-}
-
-ptdl_dl() {
-  output "Downloading pterodactyl panel files .. "
-  mkdir -p /var/www/pterodactyl
-  cd /var/www/pterodactyl || exit
-
-  curl -Lo panel.tar.gz "$PANEL_DL_URL"
-  tar -xzvf panel.tar.gz
-  chmod -R 755 storage/* bootstrap/cache/
-
-  cp .env.example .env
-
-  success "Downloaded pterodactyl panel files!"
-}
-
-install_composer_deps() {
-  output "Installing composer dependencies.."
-  [ "$OS" == "rocky" ] || [ "$OS" == "almalinux" ] && export PATH=/usr/local/bin:$PATH
-  COMPOSER_ALLOW_SUPERUSER=1 composer install --no-dev --optimize-autoloader
-  success "Installed composer dependencies!"
-}
-
-# Configure environment
-configure() {
-  output "Configuring environment.."
-
-  local app_url="http://$FQDN"
-  [ "$ASSUME_SSL" == true ] && app_url="https://$FQDN"
-  [ "$CONFIGURE_LETSENCRYPT" == true ] && app_url="https://$FQDN"
-
-  # Generate encryption key
-  php artisan key:generate --force
-
-  # Fill in environment:setup automatically
-  php artisan p:environment:setup \
-    --author="$email" \
-    --url="$app_url" \
-    --timezone="$timezone" \
-    --cache="redis" \
-    --session="redis" \
-    --queue="redis" \
-    --redis-host="localhost" \
-    --redis-pass="null" \
-    --redis-port="6379" \
-    --settings-ui=true
-
-  # Fill in environment:database credentials automatically
-  php artisan p:environment:database \
-    --host="127.0.0.1" \
-    --port="3306" \
-    --database="$MYSQL_DB" \
-    --username="$MYSQL_USER" \
-    --password="$MYSQL_PASSWORD"
-
-  # configures database
-  php artisan migrate --seed --force
-
-  # Create user account
-  php artisan p:user:make \
-    --email="$user_email" \
-    --username="$user_username" \
-    --name-first="$user_firstname" \
-    --name-last="$user_lastname" \
-    --password="$user_password" \
-    --admin=1
-
-  success "Configured environment!"
-}
-
-# set the correct folder permissions depending on OS and webserver
-set_folder_permissions() {
-  # if os is ubuntu or debian, we do this
-  case "$OS" in
-  debian | ubuntu)
-    chown -R www-data:www-data ./*
-    ;;
-  rocky | almalinux)
-    chown -R nginx:nginx ./*
-    ;;
-  esac
-}
-
-insert_cronjob() {
-  output "Installing cronjob.. "
-
-  crontab -l | {
-    cat
-    output "* * * * php /var/www/pterodactyl/artisan schedule:run >> /dev/null 2>&1"
-  } | crontab -
-
-  success "Cronjob installed!"
-}
-
-install_pteroq() {
-  output "Installing pteroq service.."
-
-  curl -o /etc/systemd/system/pteroq.service "$GIT_REPO_URL"/configs/pteroq.service
-
-  case "$OS" in
-  debian | ubuntu)
-    sed -i -e "s@<user>@www-data@g" /etc/systemd/system/pteroq.service
-    ;;
-  rocky | almalinux)
-    sed -i -e "s@<user>@nginx@g" /etc/systemd/system/pteroq.service
-    ;;
-  esac
-
-  systemctl enable pteroq.service
-  systemctl start pteroq
-
-  success "Installed pteroq!"
-}
-
-# -------- OS specific install functions ------- #
-
-enable_services() {
-  case "$OS" in
-  ubuntu | debian)
-    systemctl enable redis-server
-    systemctl start redis-server
-    ;;
-  rocky | almalinux)
-    systemctl enable redis
-    systemctl start redis
-    ;;
-  esac
-  systemctl enable nginx
-  systemctl enable mariadb
-  systemctl start mariadb
-}
-
-selinux_allow() {
-  setsebool -P httpd_can_network_connect 1 || true # these commands can fail OK
-  setsebool -P httpd_execmem 1 || true
-  setsebool -P httpd_unified 1 || true
-}
-
-php_fpm_conf() {
-  curl -o /etc/php-fpm.d/www-pterodactyl.conf "$GIT_REPO_URL"/configs/www-pterodactyl.conf
-
-  systemctl enable php-fpm
-  systemctl start php-fpm
-}
-
-ubuntu_dep() {
-  # Install deps for adding repos
-  install_packages "software-properties-common apt-transport-https ca-certificates gnupg"
-
-  # Add Ubuntu universe repo
-  add-apt-repository universe -y
-
-  # Add PPA for PHP (we need 8.1)
-  LC_ALL=C.UTF-8 add-apt-repository -y ppa:ondrej/php
-}
-
-debian_dep() {
-  # Install deps for adding repos
-  install_packages "dirmngr ca-certificates apt-transport-https lsb-release"
-
-  # Install PHP 8.1 using sury's repo
-  curl -o /etc/apt/trusted.gpg.d/php.gpg https://packages.sury.org/php/apt.gpg
-  echo "deb https://packages.sury.org/php/ $(lsb_release -sc) main" | tee /etc/apt/sources.list.d/php.list
-}
-
-alma_rocky_dep() {
-  # SELinux tools
-  install_packages "policycoreutils selinux-policy selinux-policy-targeted \
-    setroubleshoot-server setools setools-console mcstrans"
-
-  # add remi repo (php8.1)
-  install_packages "epel-release http://rpms.remirepo.net/enterprise/remi-release-$OS_VER_MAJOR.rpm"
-  dnf module enable -y php:remi-8.1
-}
-
-dep_install() {
-  output "Installing dependencies for $OS $OS_VER..."
-
-  # Update repos before installing
-  update_repos
-
-  [ "$CONFIGURE_FIREWALL" == true ] && install_firewall && firewall_ports
-
-  case "$OS" in
-  ubuntu | debian)
-    [ "$OS" == "ubuntu" ] && ubuntu_dep
-    [ "$OS" == "debian" ] && debian_dep
-
-    update_repos
-
-    # Install dependencies
-    install_packages "php8.1 php8.1-{cli,common,gd,mysql,mbstring,bcmath,xml,fpm,curl,zip} \
-      mariadb-common mariadb-server mariadb-client \
-      nginx \
-      redis-server \
-      zip unzip tar \
-      git cron"
-
-    [ "$CONFIGURE_LETSENCRYPT" == true ] && install_packages "certbot python3-certbot-nginx"
-
-    ;;
-  rocky | almalinux)
-    alma_rocky_dep
-
-    # Install dependencies
-    install_packages "php php-{common,fpm,cli,json,mysqlnd,mcrypt,gd,mbstring,pdo,zip,bcmath,dom,opcache,posix} \
-      mariadb mariadb-server \
-      nginx \
-      redis \
-      zip unzip tar \
-      git cronie"
-
-    [ "$CONFIGURE_LETSENCRYPT" == true ] && install_packages "certbot python3-certbot-nginx"
-
-    # Allow nginx
-    selinux_allow
-
-    # Create config for php fpm
-    php_fpm_conf
-    ;;
-  esac
-
-  enable_services
-
-  success "Dependencies installed!"
-}
-
-# --------------- Other functions -------------- #
-
-firewall_ports() {
-  output "Opening ports: 22 (SSH), 80 (HTTP) and 443 (HTTPS)"
-
-  firewall_allow_ports "22 80 443"
-
-  success "Firewall ports opened!"
-}
-
-letsencrypt() {
-  FAILED=false
-
-  output "Configuring Let's Encrypt..."
-
-  # Obtain certificate
-  certbot --nginx --redirect --no-eff-email --email "$email" -d "$FQDN" || FAILED=true
-
-  # Check if it succeded
-  if [ ! -d "/etc/letsencrypt/live/$FQDN/" ] || [ "$FAILED" == true ]; then
-    warning "The process of obtaining a Let's Encrypt certificate failed!"
-    echo -n "* Still assume SSL? (y/N): "
-    read -r CONFIGURE_SSL
-
-    if [[ "$CONFIGURE_SSL" =~ [Yy] ]]; then
-      ASSUME_SSL=true
-      CONFIGURE_LETSENCRYPT=false
-      configure_nginx
-    else
-      ASSUME_SSL=false
-      CONFIGURE_LETSENCRYPT=false
-    fi
-  else
-    success "The process of obtaining a Let's Encrypt certificate succeeded!"
-  fi
-}
-
-# ------ Webserver configuration functions ----- #
-
-configure_nginx() {
-  output "Configuring nginx .."
-
-  if [ "$ASSUME_SSL" == true ] && [ "$CONFIGURE_LETSENCRYPT" == false ]; then
-    DL_FILE="nginx_ssl.conf"
-  else
-    DL_FILE="nginx.conf"
-  fi
-
-  case "$OS" in
-  ubuntu | debian)
-    PHP_SOCKET="/run/php/php8.1-fpm.sock"
-    CONFIG_PATH_AVAIL="/etc/nginx/sites-available"
-    CONFIG_PATH_ENABL="/etc/nginx/sites-enabled"
-    ;;
-  rocky | almalinux)
-    PHP_SOCKET="/var/run/php-fpm/pterodactyl.sock"
-    CONFIG_PATH_AVAIL="/etc/nginx/conf.d"
-    CONFIG_PATH_ENABL="$CONFIG_PATH_AVAIL"
-    ;;
-  esac
-
-  rm -rf "$CONFIG_PATH_ENABL"/default
-
-  curl -o "$CONFIG_PATH_AVAIL"/pterodactyl.conf "$GIT_REPO_URL"/configs/$DL_FILE
-
-  sed -i -e "s@<domain>@${FQDN}@g" "$CONFIG_PATH_AVAIL"/pterodactyl.conf
-
-  sed -i -e "s@<php_socket>@${PHP_SOCKET}@g" "$CONFIG_PATH_AVAIL"/pterodactyl.conf
-
-  case "$OS" in
-  ubuntu | debian)
-    ln -sf "$CONFIG_PATH_AVAIL"/pterodactyl.conf "$CONFIG_PATH_ENABL"/pterodactyl.conf
-    ;;
-  esac
-
-  if [ "$ASSUME_SSL" == false ] && [ "$CONFIGURE_LETSENCRYPT" == false ]; then
-    systemctl restart nginx
-  fi
-
-  success "Nginx configured!"
-}
-
-# --------------- Main functions --------------- #
-
-perform_install() {
-  output "Starting installation.. this might take a while!"
-  dep_install
-  install_composer
-  ptdl_dl
-  install_composer_deps
-  create_db_user "$MYSQL_USER" "$MYSQL_PASSWORD"
-  create_db "$MYSQL_DB" "$MYSQL_USER"
-  configure
-  set_folder_permissions
-  insert_cronjob
-  install_pteroq
-  configure_nginx
-  [ "$CONFIGURE_LETSENCRYPT" == true ] && letsencrypt
-
-  return 0
-}
-
-# ------------------- Install ------------------ #
 
 summary() {
   print_brake 62
@@ -571,7 +539,7 @@ summary() {
   output "First name: $user_firstname"
   output "Last name: $user_lastname"
   output "User password: (censored)"
-  output "Hostname/FQDN: $FQDN"
+  output "Hostname/FQDN: $HOSTNAME"
   output "Configure Firewall? $CONFIGURE_FIREWALL"
   output "Configure Let's Encrypt? $CONFIGURE_LETSENCRYPT"
   output "Assume SSL? $ASSUME_SSL"
@@ -583,9 +551,9 @@ goodbye() {
   output "Panel installation completed"
   output ""
 
-  [ "$CONFIGURE_LETSENCRYPT" == true ] && output "Your panel should be accessible from $(hyperlink "$FQDN")"
+  [ "$CONFIGURE_LETSENCRYPT" == true ] && output "Your panel should be accessible from $(hyperlink "$HOSTNAME")"
   [ "$ASSUME_SSL" == true ] && [ "$CONFIGURE_LETSENCRYPT" == false ] && output "You have opted in to use SSL, but not via Let's Encrypt automatically. Your panel will not work until SSL has been configured."
-  [ "$ASSUME_SSL" == false ] && [ "$CONFIGURE_LETSENCRYPT" == false ] && output "Your panel should be accessible from $(hyperlink "$FQDN")"
+  [ "$ASSUME_SSL" == false ] && [ "$CONFIGURE_LETSENCRYPT" == false ] && output "Your panel should be accessible from $(hyperlink "$HOSTNAME")"
 
   output ""
   output "Installation is using nginx on $OS"
@@ -594,7 +562,6 @@ goodbye() {
   print_brake 62
 }
 
-# run script
-ui
-perform_install
+# Run script
+main
 goodbye

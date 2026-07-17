@@ -1,79 +1,42 @@
 #!/bin/bash
 
-set -e
+# Pterodactyl Installer
+# Copyright Forestracks 2022-2026
 
-# Pterodactyl Installer 
-# Copyright Forestracks 2022-2025
+set -e
 
 # Check if script is loaded, load if not or fail otherwise.
 fn_exists() { declare -F "$1" >/dev/null; }
 if ! fn_exists lib_loaded; then
   # shellcheck source=lib/main.sh
-  source <(curl -sSL "$GIT_REPO_URL"/lib/main.sh)
+  source /tmp/main.sh || source <(curl -fsSL "$GIT_REPO_URL"/lib/main.sh)
   ! fn_exists lib_loaded && echo "* ERROR: Could not load lib script" && exit 1
 fi
 
 # ------------------ Variables ----------------- #
-
 export RM_PANEL=false
 export RM_WINGS=false
 
-# --------------- Main functions --------------- #
-
-ui() {
-  if [ -d "/var/www/pterodactyl" ]; then
-    output "Panel installation has been detected."
-    echo -e -n "* Do you want to remove panel? (y/N): "
-    read -r RM_PANEL_INPUT
-    [[ "$RM_PANEL_INPUT" =~ [Yy] ]] && RM_PANEL=true
-  fi
-
-  if [ -d "/etc/pterodactyl" ]; then
-    output "Wings installation has been detected."
-    warning "This will remove all the servers!"
-    echo -e -n "* Do you want to remove Wings (daemon)? (y/N): "
-    read -r RM_WINGS_INPUT
-    [[ "$RM_WINGS_INPUT" =~ [Yy] ]] && RM_WINGS=true
-  fi
-
-  if [ "$RM_PANEL" == false ] && [ "$RM_WINGS" == false ]; then
-    error "Nothing to uninstall!"
-    exit 1
-  fi
-
-  summary
-
-  # confirm uninstallation
-  echo -e -n "* Continue with uninstallation? (y/N): "
-  read -r CONFIRM
-  if [[ "$CONFIRM" =~ [Yy] ]]; then
-    run_installer "uninstall"
-  else
-    error "Uninstallation aborted."
-    exit 1
-  fi
-}
-
-# ------------------ Variables ----------------- #
-
-RM_PANEL="${RM_PANEL:-true}"
-RM_WINGS="${RM_WINGS:-true}"
-
 # ---------- Uninstallation functions ---------- #
-
 rm_panel_files() {
-  output "Removing panel files..."
+  output "Removing panel files .."
   rm -rf /var/www/pterodactyl /usr/local/bin/composer
-  [ "$OS" != "centos" ] && unlink /etc/nginx/sites-enabled/pterodactyl.conf
-  [ "$OS" != "centos" ] && rm -f /etc/nginx/sites-available/pterodactyl.conf
-  [ "$OS" != "centos" ] && ln -s /etc/nginx/sites-available/default /etc/nginx/sites-enabled/default
-  [ "$OS" == "centos" ] && rm -f /etc/nginx/conf.d/pterodactyl.conf
+  case "$OS" in
+  debian | ubuntu)
+    rm -f /etc/nginx/sites-enabled/pterodactyl.conf
+    rm -f /etc/nginx/sites-available/pterodactyl.conf
+    [ -e /etc/nginx/sites-available/default ] && ln -sf /etc/nginx/sites-available/default /etc/nginx/sites-enabled/default
+    ;;
+  almalinux | rocky)
+    rm -f /etc/nginx/conf.d/pterodactyl.conf
+    ;;
+  esac
   systemctl restart nginx
   success "Removed panel files."
 }
 
 rm_docker_containers() {
-  output "Removing docker containers and images..."
+  output "Removing docker containers and images .."
 
   docker system prune -a -f
 
@@ -81,10 +44,10 @@ rm_docker_containers() {
 }
 
 rm_wings_files() {
-  output "Removing wings files..."
+  output "Removing wings files .."
 
-  # stop and remove wings service
-  systemctl disable --now wings
+  # Stop and remove wings service
+  systemctl disable --now wings || true
   rm -rf /etc/systemd/system/wings.service
 
   rm -rf /etc/pterodactyl /usr/local/bin/wings /var/lib/pterodactyl
@@ -92,16 +55,16 @@ rm_wings_files() {
 }
 
 rm_services() {
-  output "Removing services..."
-  systemctl disable --now pteroq
+  output "Removing services .."
+  systemctl disable --now pteroq || true
   rm -rf /etc/systemd/system/pteroq.service
   case "$OS" in
   debian | ubuntu)
-    systemctl disable --now redis-server
+    systemctl disable --now redis-server || true
     ;;
-  centos)
-    systemctl disable --now redis
-    systemctl disable --now php-fpm
+  almalinux | rocky)
+    systemctl disable --now redis || true
+    systemctl disable --now php-fpm || true
     rm -rf /etc/php-fpm.d/www-pterodactyl.conf
     ;;
   esac
@@ -109,17 +72,17 @@ rm_services() {
 }
 
 rm_cron() {
-  output "Removing cron jobs..."
+  output "Removing cron jobs .."
   crontab -l | grep -vF "* * * * * php /var/www/pterodactyl/artisan schedule:run >> /dev/null 2>&1" | crontab -
   success "Removed cron jobs."
 }
 
 rm_database() {
-  output "Removing database..."
-  valid_db=$(mariadb -u root -e "SELECT schema_name FROM information_schema.schemata;" | grep -v -E -- 'schema_name|information_schema|performance_schema|mysql')
+  output "Removing database .."
+  valid_db=$(mariadb -u root -e "SELECT schema_name FROM information_schema.schemata;" | grep -v -E -- 'schema_name|information_schema|performance_schema|mysql' || true)
   warning "Be careful! This database will be deleted!"
   if [[ "$valid_db" == *"panel"* ]]; then
-    echo -n "* Database called panel has been detected. Is it the pterodactyl database? (y/N): "
+    echo -n "* Database called panel has been detected. Is it the Pterodactyl database? (y/N): "
     read -r is_panel
     if [[ "$is_panel" =~ [Yy] ]]; then
       DATABASE=panel
@@ -140,8 +103,8 @@ rm_database() {
   done
   [[ -n "$DATABASE" ]] && mariadb -u root -e "DROP DATABASE $DATABASE;"
   # Exclude usernames User and root (Hope no one uses username User)
-  output "Removing database user..."
-  valid_users=$(mariadb -u root -e "SELECT user FROM mysql.user;" | grep -v -E -- 'user|root')
+  output "Removing database user .."
+  valid_users=$(mariadb -u root -e "SELECT user FROM mysql.user;" | grep -v -E -- 'user|root' || true)
   warning "Be careful! This user will be deleted!"
   if [[ "$valid_users" == *"pterodactyl"* ]]; then
     echo -n "* User called pterodactyl has been detected. Is it the pterodactyl user? (y/N): "
@@ -169,7 +132,6 @@ rm_database() {
 }
 
 # --------------- Main functions --------------- #
-
 perform_uninstall() {
   [ "$RM_PANEL" == true ] && rm_panel_files
   [ "$RM_PANEL" == true ] && rm_cron
@@ -182,6 +144,42 @@ perform_uninstall() {
 }
 
 # ------------------ Uninstall ----------------- #
+main() {
+  welcome ""
+
+  # Check for existing installation
+  if [ -d "/var/www/pterodactyl" ]; then
+    output "Panel installation has been detected."
+    echo -e -n "* Do you want to remove panel? (y/N): "
+    read -r RM_PANEL_INPUT
+    [[ "$RM_PANEL_INPUT" =~ [Yy] ]] && RM_PANEL=true
+  fi
+
+  if [ -d "/etc/pterodactyl" ]; then
+    output "Wings installation has been detected."
+    warning "This will remove all the servers!"
+    echo -e -n "* Do you want to remove Wings (daemon)? (y/N): "
+    read -r RM_WINGS_INPUT
+    [[ "$RM_WINGS_INPUT" =~ [Yy] ]] && RM_WINGS=true
+  fi
+
+  if [ "$RM_PANEL" == false ] && [ "$RM_WINGS" == false ]; then
+    error "Nothing to uninstall!"
+    exit 1
+  fi
+
+  summary
+
+  # Confirm uninstallation
+  echo -e -n "* Continue with uninstallation? (y/N): "
+  read -r CONFIRM
+  if [[ "$CONFIRM" =~ [Yy] ]]; then
+    perform_uninstall
+  else
+    error "Uninstallation aborted."
+    exit 1
+  fi
+}
 
 summary() {
   print_brake 30
@@ -198,6 +196,5 @@ goodbye() {
   print_brake 62
 }
 
-ui
-perform_uninstall
+main
 goodbye

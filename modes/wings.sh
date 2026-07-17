@@ -1,15 +1,15 @@
 #!/bin/bash
 
-set -e
+# Pterodactyl Installer
+# Copyright Forestracks 2022-2026
 
-# Pterodactyl Installer 
-# Copyright Forestracks 2022-2025
+set -e
 
 # Check if script is loaded, load if not or fail otherwise.
 fn_exists() { declare -F "$1" >/dev/null; }
 if ! fn_exists lib_loaded; then
   # shellcheck source=lib/main.sh
-  source <(curl -sSL "$GIT_REPO_URL"/lib/main.sh)
+  source /tmp/main.sh || source <(curl -fsSL "$GIT_REPO_URL"/lib/main.sh)
   ! fn_exists lib_loaded && echo "* ERROR: Could not load lib script" && exit 1
 fi
 
@@ -20,9 +20,9 @@ export INSTALL_MARIADB=false
 # Firewall
 export CONFIGURE_FIREWALL=false
 
-# SSL (Let's Encrypt)
+# TLS Cert
 export CONFIGURE_LETSENCRYPT=false
-export FQDN=""
+export HOSTNAME=""
 export EMAIL=""
 
 # Database host
@@ -33,9 +33,8 @@ export MYSQL_DBHOST_USER="pterodactyluser"
 export MYSQL_DBHOST_PASSWORD=""
 
 # ------------ User input functions ------------ #
-
 ask_letsencrypt() {
-  if [ "$CONFIGURE_UFW" == false ] && [ "$CONFIGURE_FIREWALL_CMD" == false ]; then
+  if [ "$CONFIGURE_FIREWALL" == false ]; then
     warning "Let's Encrypt requires port 80/443 to be opened! You have opted out of the automatic firewall configuration; use this at your own risk (if port 80/443 is closed, the script will fail)!"
   fi
 
@@ -85,11 +84,159 @@ ask_database_firewall() {
   fi
 }
 
-####################
-## MAIN FUNCTIONS ##
-####################
+# ----------- Installation functions ----------- #
+enable_services() {
+  [ "$INSTALL_MARIADB" == true ] && systemctl enable mariadb
+  [ "$INSTALL_MARIADB" == true ] && systemctl start mariadb
+  systemctl start docker
+  systemctl enable docker
+}
 
+dep_install() {
+  output "Installing dependencies for $OS $OS_VER .."
+
+  [ "$CONFIGURE_FIREWALL" == true ] && install_firewall && firewall_ports
+
+  case "$OS" in
+  debian | ubuntu)
+    install_packages "ca-certificates gnupg lsb-release"
+
+    mkdir -p /etc/apt/keyrings
+    curl -fsSL https://download.docker.com/linux/debian/gpg | gpg --dearmor --yes -o /etc/apt/keyrings/docker.gpg
+
+    echo \
+      "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/$OS \
+      $(lsb_release -cs) stable" | tee /etc/apt/sources.list.d/docker.list >/dev/null
+    ;;
+
+  almalinux | rocky)
+    install_packages "dnf-utils"
+    dnf config-manager --add-repo=https://download.docker.com/linux/centos/docker-ce.repo
+
+    [ "$CONFIGURE_LETSENCRYPT" == true ] && install_packages "epel-release"
+
+    install_packages "device-mapper-persistent-data lvm2"
+    ;;
+  esac
+
+  # Update the new repos
+  update_repos
+
+  # Install dependencies
+  install_packages "docker-ce docker-ce-cli containerd.io"
+
+  # Install MariaDB if needed
+  [ "$INSTALL_MARIADB" == true ] && install_packages "mariadb-server"
+  [ "$CONFIGURE_LETSENCRYPT" == true ] && install_packages "certbot"
+
+  enable_services
+
+  success "Dependencies installed!"
+}
+
+ptdl_dl() {
+  echo "* Downloading Pterodactyl Wings.. "
+
+  mkdir -p /etc/pterodactyl /var/run/wings
+  curl -fsSL -o /usr/local/bin/wings "$WINGS_DL_URL$ARCH"
+
+  chmod u+x /usr/local/bin/wings
+
+  success "Pterodactyl Wings downloaded successfully"
+}
+
+systemd_file() {
+  output "Installing systemd service .."
+
+  curl -fsSL -o /etc/systemd/system/wings.service "$GIT_REPO_URL"/configs/wings.service
+  systemctl daemon-reload
+  systemctl enable wings
+
+  success "Installed systemd service!"
+}
+
+firewall_ports() {
+  output "Opening port 22 (SSH), 8080 (Wings Port), 2022 (Wings SFTP Port)"
+
+  [ "$CONFIGURE_LETSENCRYPT" == true ] && firewall_allow_ports "80 443"
+  [ "$CONFIGURE_DB_FIREWALL" == true ] && firewall_allow_ports "3306"
+
+  firewall_allow_ports "22 8080 2022"
+
+  success "Firewall ports opened!"
+}
+
+letsencrypt() {
+  FAILED=false
+
+  output "Configuring LetsEncrypt .."
+
+  # If user has nginx
+  systemctl stop nginx || true
+
+  # Obtain certificate
+  certbot certonly --no-eff-email --email "$EMAIL" --standalone -d "$HOSTNAME" || FAILED=true
+
+  systemctl start nginx || true
+
+  # Check if it succeded
+  if [ ! -d "/etc/letsencrypt/live/$HOSTNAME/" ] || [ "$FAILED" == true ]; then
+    warning "The process of obtaining a Let's Encrypt certificate failed!"
+  else
+    success "The process of obtaining a Let's Encrypt certificate succeeded!"
+  fi
+}
+
+configure_mysql() {
+  output "Configuring MySQL.."
+
+  create_db_user "$MYSQL_DBHOST_USER" "$MYSQL_DBHOST_PASSWORD" "$MYSQL_DBHOST_HOST"
+  grant_all_privileges "*" "$MYSQL_DBHOST_USER" "$MYSQL_DBHOST_HOST"
+
+  if [ "$MYSQL_DBHOST_HOST" != "127.0.0.1" ]; then
+    echo "* Changing MySQL bind address .."
+
+    case "$OS" in
+    debian | ubuntu)
+      sed -i 's/127.0.0.1/0.0.0.0/g' /etc/mysql/mariadb.conf.d/50-server.cnf
+      ;;
+    almalinux | rocky)
+      sed -i 's/^#bind-address=0.0.0.0$/bind-address=0.0.0.0/' /etc/my.cnf.d/mariadb-server.cnf
+      ;;
+    esac
+
+    systemctl restart mariadb
+  fi
+
+  success "MySQL configured!"
+}
+
+perform_install() {
+  output "Installing Pterodactyl wings .."
+  dep_install
+  ptdl_dl
+  systemd_file
+  [ "$CONFIGURE_DBHOST" == true ] && configure_mysql
+  [ "$CONFIGURE_LETSENCRYPT" == true ] && letsencrypt
+
+  return 0
+}
+
+# --------------- Main functions --------------- #
 main() {
+  # Check for existing installation
+  if [ -f "/usr/local/bin/wings" ]; then
+    warning "The script has detected that you already have Wings installed on your system! You cannot run the script multiple times, it will fail!"
+    echo -e -n "* Are you sure you want to proceed? (y/N): "
+    read -r CONFIRM_PROCEED || true
+    if [[ ! "$CONFIRM_PROCEED" =~ [Yy] ]]; then
+      error "Installation aborted!"
+      exit 1
+    fi
+  fi
+
+  welcome "wings"
+
   check_virt
 
   echo "* "
@@ -126,29 +273,29 @@ main() {
   ask_letsencrypt
 
   if [ "$CONFIGURE_LETSENCRYPT" == true ]; then
-    while [ -z "$FQDN" ]; do
+    while [ "$CONFIGURE_LETSENCRYPT" == true ] && [ -z "$HOSTNAME" ]; do
       echo -n "* Set the FQDN to use for Let's Encrypt (node.example.com): "
-      read -r FQDN
+      read -r HOSTNAME
 
       ASK=false
 
-      [ -z "$FQDN" ] && error "FQDN cannot be empty"
-      bash <(curl -s "$GIT_REPO_URL"/lib/fqdn.sh) "$FQDN" || ASK=true
-      [ -d "/etc/letsencrypt/live/$FQDN/" ] && error "A certificate with this FQDN already exists!" && ASK=true
+      [ -z "$HOSTNAME" ] && error "FQDN cannot be empty"                                                            # Check if FQDN is empty
+      bash <(curl -fsSL "$GIT_REPO_URL"/lib/fqdn.sh) "$HOSTNAME" || ASK=true                                        # Check if FQDN is valid
+      [ -d "/etc/letsencrypt/live/$HOSTNAME/" ] && error "A certificate with this FQDN already exists!" && ASK=true # Check if cert exists
 
-      [ "$ASK" == true ] && FQDN=""
+      [ "$ASK" == true ] && HOSTNAME=""
       [ "$ASK" == true ] && echo -e -n "* Do you still want to automatically configure HTTPS using Let's Encrypt? (y/N): "
       [ "$ASK" == true ] && read -r CONFIRM_SSL
 
       if [[ ! "$CONFIRM_SSL" =~ [Yy] ]] && [ "$ASK" == true ]; then
         CONFIGURE_LETSENCRYPT=false
-        FQDN=""
+        HOSTNAME=""
       fi
     done
   fi
 
   if [ "$CONFIGURE_LETSENCRYPT" == true ]; then
-    # set EMAIL
+    # Email
     while ! valid_email "$EMAIL"; do
       echo -n "* Enter email address for Let's Encrypt: "
       read -r EMAIL
@@ -161,178 +308,34 @@ main() {
 
   read -r CONFIRM
   if [[ "$CONFIRM" =~ [Yy] ]]; then
-    run_installer "wings"
+    # Firewall
+    CONFIGURE_FIREWALL="${CONFIGURE_FIREWALL:-false}"
+
+    # TLS Cert
+    CONFIGURE_LETSENCRYPT="${CONFIGURE_LETSENCRYPT:-false}"
+    HOSTNAME="${FQDN:-}"
+    EMAIL="${EMAIL:-}"
+
+    # Database
+    INSTALL_MARIADB="${INSTALL_MARIADB:-false}"
+    CONFIGURE_DBHOST="${CONFIGURE_DBHOST:-false}"
+    CONFIGURE_DB_FIREWALL="${CONFIGURE_DB_FIREWALL:-false}"
+    MYSQL_DBHOST_HOST="${MYSQL_DBHOST_HOST:-127.0.0.1}"
+    MYSQL_DBHOST_USER="${MYSQL_DBHOST_USER:-pterodactyluser}"
+    MYSQL_DBHOST_PASSWORD="${MYSQL_DBHOST_PASSWORD:-}"
+
+    if [[ $CONFIGURE_DBHOST == true && -z "${MYSQL_DBHOST_PASSWORD}" ]]; then
+      error "MySQL database host user password is required"
+      exit 1
+    fi
+
+    # ---------------- Installation ---------------- #
+    perform_install
   else
     error "Installation aborted."
     exit 1
   fi
 }
-
-# ------------------ Variables ----------------- #
-
-INSTALL_MARIADB="${INSTALL_MARIADB:-false}"
-
-# firewall
-CONFIGURE_FIREWALL="${CONFIGURE_FIREWALL:-false}"
-
-# SSL (Let's Encrypt)
-CONFIGURE_LETSENCRYPT="${CONFIGURE_LETSENCRYPT:-false}"
-FQDN="${FQDN:-}"
-EMAIL="${EMAIL:-}"
-
-# Database host
-CONFIGURE_DBHOST="${CONFIGURE_DBHOST:-false}"
-CONFIGURE_DB_FIREWALL="${CONFIGURE_DB_FIREWALL:-false}"
-MYSQL_DBHOST_HOST="${MYSQL_DBHOST_HOST:-127.0.0.1}"
-MYSQL_DBHOST_USER="${MYSQL_DBHOST_USER:-pterodactyluser}"
-MYSQL_DBHOST_PASSWORD="${MYSQL_DBHOST_PASSWORD:-}"
-
-if [[ $CONFIGURE_DBHOST == true && -z "${MYSQL_DBHOST_PASSWORD}" ]]; then
-  error "MySQL database host user password is required"
-  exit 1
-fi
-
-# ----------- Installation functions ----------- #
-
-enable_services() {
-  [ "$INSTALL_MARIADB" == true ] && systemctl enable mariadb
-  [ "$INSTALL_MARIADB" == true ] && systemctl start mariadb
-  systemctl start docker
-  systemctl enable docker
-}
-
-dep_install() {
-  output "Installing dependencies for $OS $OS_VER..."
-
-  [ "$CONFIGURE_FIREWALL" == true ] && install_firewall && firewall_ports
-
-  case "$OS" in
-  ubuntu | debian)
-    install_packages "ca-certificates gnupg lsb-release"
-
-    mkdir -p /etc/apt/keyrings
-    curl -fsSL https://download.docker.com/linux/debian/gpg | gpg --dearmor --yes -o /etc/apt/keyrings/docker.gpg
-
-    echo \
-      "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/$OS \
-      $(lsb_release -cs) stable" | tee /etc/apt/sources.list.d/docker.list >/dev/null
-    ;;
-
-  rocky | almalinux)
-    install_packages "dnf-utils"
-    dnf config-manager --add-repo=https://download.docker.com/linux/centos/docker-ce.repo
-
-    [ "$CONFIGURE_LETSENCRYPT" == true ] && install_packages "epel-release"
-
-    install_packages "device-mapper-persistent-data lvm2"
-    ;;
-  esac
-
-  # Update the new repos
-  update_repos
-
-  # Install dependencies
-  install_packages "docker-ce docker-ce-cli containerd.io"
-
-  # Install MariaDB if needed
-  [ "$INSTALL_MARIADB" == true ] && install_packages "mariadb-server"
-  [ "$CONFIGURE_LETSENCRYPT" == true ] && install_packages "certbot"
-
-  enable_services
-
-  success "Dependencies installed!"
-}
-
-ptdl_dl() {
-  echo "* Downloading Pterodactyl Wings.. "
-
-  mkdir -p /etc/pterodactyl
-  curl -L -o /usr/local/bin/wings "$WINGS_DL_URL$ARCH"
-
-  chmod u+x /usr/local/bin/wings
-
-  success "Pterodactyl Wings downloaded successfully"
-}
-
-systemd_file() {
-  output "Installing systemd service.."
-
-  curl -o /etc/systemd/system/wings.service "$GIT_REPO_URL"/configs/wings.service
-  systemctl daemon-reload
-  systemctl enable wings
-
-  success "Installed systemd service!"
-}
-
-firewall_ports() {
-  output "Opening port 22 (SSH), 8080 (Wings Port), 2022 (Wings SFTP Port)"
-
-  [ "$CONFIGURE_LETSENCRYPT" == true ] && firewall_allow_ports "80 443"
-  [ "$CONFIGURE_DB_FIREWALL" == true ] && firewall_allow_ports "3306"
-
-  firewall_allow_ports "22 8080 2022"
-
-  success "Firewall ports opened!"
-}
-
-letsencrypt() {
-  FAILED=false
-
-  output "Configuring LetsEncrypt.."
-
-  # If user has nginx
-  systemctl stop nginx || true
-
-  # Obtain certificate
-  certbot certonly --no-eff-email --email "$EMAIL" --standalone -d "$FQDN" || FAILED=true
-
-  systemctl start nginx || true
-
-  # Check if it succeded
-  if [ ! -d "/etc/letsencrypt/live/$FQDN/" ] || [ "$FAILED" == true ]; then
-    warning "The process of obtaining a Let's Encrypt certificate failed!"
-  else
-    success "The process of obtaining a Let's Encrypt certificate succeeded!"
-  fi
-}
-
-configure_mysql() {
-  output "Configuring MySQL.."
-
-  create_db_user "$MYSQL_DBHOST_USER" "$MYSQL_DBHOST_PASSWORD" "$MYSQL_DBHOST_HOST"
-  grant_all_privileges "*" "$MYSQL_DBHOST_USER" "$MYSQL_DBHOST_HOST"
-
-  if [ "$MYSQL_DBHOST_HOST" != "127.0.0.1" ]; then
-    echo "* Changing MySQL bind address.."
-
-    case "$OS" in
-    debian | ubuntu)
-      sed -i 's/127.0.0.1/0.0.0.0/g' /etc/mysql/mariadb.conf.d/50-server.cnf
-      ;;
-    rocky | almalinux)
-      sed -ne 's/^#bind-address=0.0.0.0$/bind-address=0.0.0.0/' /etc/my.cnf.d/mariadb-server.cnf
-      ;;
-    esac
-
-    systemctl restart mysqld
-  fi
-
-  success "MySQL configured!"
-}
-
-# --------------- Main functions --------------- #
-perform_install() {
-  output "Installing pterodactyl wings.."
-  dep_install
-  ptdl_dl
-  systemd_file
-  [ "$CONFIGURE_DBHOST" == true ] && configure_mysql
-  [ "$CONFIGURE_LETSENCRYPT" == true ] && letsencrypt
-
-  return 0
-}
-
-# ---------------- Installation ---------------- #
 
 function goodbye {
   echo ""
@@ -359,7 +362,6 @@ function goodbye {
   echo ""
 }
 
-# run script
+# Run script
 main
-perform_install
 goodbye
