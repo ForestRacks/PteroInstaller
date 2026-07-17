@@ -579,34 +579,26 @@ main() {
   welcome "basic"
   check_os_x86_64
 
-  # Confirm installation
-  echo -e -n "\n* Initial configuration completed. Continue with installation? (y/N): "
-  read -r CONFIRM || true
-  if [[ "$CONFIRM" =~ [Yy] ]]; then
-    # --------------- Execute functions --------------- #
-    output "Starting Pterodactyl Panel installation.. this might take a while!"
-    panel_deps
-    install_composer
-    panel_dl
-    install_composer_deps
-    create_db_user "pterodactyl" "$MYSQL_PASSWORD"
-    create_db "panel" "pterodactyl"
-    configure_env
-    insert_cronjob
-    pteroq_systemd
-    configure_nginx
-    install_firewall
-    firewall_ports "22 80 443 8080 2022"
-    output "Installing Pterodactyl Wings .."
-    wings_deps
-    wings_dl
-    wings_systemd
-    set_folder_permissions
-    summary
-  else
-    error "Installation aborted."
-    exit 1
-  fi
+  # --------------- Execute functions --------------- #
+  output "Starting Pterodactyl Panel installation.. this might take a while!"
+  panel_deps
+  install_composer
+  panel_dl
+  install_composer_deps
+  create_db_user "pterodactyl" "$MYSQL_PASSWORD"
+  create_db "panel" "pterodactyl"
+  configure_env
+  insert_cronjob
+  pteroq_systemd
+  configure_nginx
+  install_firewall
+  firewall_ports "22 80 443 8080 2022"
+  output "Installing Pterodactyl Wings .."
+  wings_deps
+  wings_dl
+  wings_systemd
+  set_folder_permissions
+  summary
 }
 
 # Run script

@@ -443,28 +443,9 @@ main() {
   check_os_x86_64
 
   # Set database credentials
-  output "Database configuration."
-  output ""
-  output "This will be the credentials used for communication between the MySQL"
-  output "database and the panel. You do not need to create the database"
-  output "before running this script, the script will do that for you."
-  output ""
-
-  MYSQL_DB="-"
-  while [[ "$MYSQL_DB" == *"-"* ]]; do
-    required_input MYSQL_DB "Database name (panel): " "" "panel"
-    [[ "$MYSQL_DB" == *"-"* ]] && error "Database name cannot contain hyphens"
-  done
-
-  MYSQL_USER="-"
-  while [[ "$MYSQL_USER" == *"-"* ]]; do
-    required_input MYSQL_USER "Database username (pterodactyl): " "" "pterodactyl"
-    [[ "$MYSQL_USER" == *"-"* ]] && error "Database user cannot contain hyphens"
-  done
-
-  # MySQL password input
-  rand_pw=$(gen_passwd 64)
-  password_input MYSQL_PASSWORD "Password (press enter to use randomly generated password): " "MySQL password cannot be empty" "$rand_pw"
+  MYSQL_DB="panel"
+  MYSQL_USER="pterodactyl"
+  MYSQL_PASSWORD="$(gen_passwd 64)"
 
   readarray -t valid_timezones <<<"$(curl -s "$GIT_REPO_URL"/configs/valid_timezones.txt)"
   output "List of valid timezones here $(hyperlink "https://www.php.net/manual/en/timezones.php")"
@@ -480,10 +461,10 @@ main() {
   email_input email "Provide the email address that will be used to configure Let's Encrypt and Pterodactyl: " "Email cannot be empty or invalid"
 
   # Initial admin account
-  email_input user_email "Email address for the initial admin account: " "Email cannot be empty or invalid"
+  user_email="$email"
   required_input user_username "Username for the initial admin account: " "Username cannot be empty"
-  required_input user_firstname "First name for the initial admin account: " "Name cannot be empty"
-  required_input user_lastname "Last name for the initial admin account: " "Name cannot be empty"
+  user_firstname="Admin"
+  user_lastname="User"
   password_input user_password "Password for the initial admin account: " "Password cannot be empty"
 
   print_brake 72
