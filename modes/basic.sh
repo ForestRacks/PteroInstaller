@@ -244,7 +244,7 @@ configure_env() {
     --settings-ui=true
 
   # Configure database and backup credentials
-  php artisan p:environment:database \
+  yes | php artisan p:environment:database \
     --host="127.0.0.1" \
     --port="3306" \
     --database="panel" \

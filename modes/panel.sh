@@ -128,7 +128,7 @@ configure() {
     --settings-ui=true
 
   # Fill in environment:database credentials automatically
-  php artisan p:environment:database \
+  yes | php artisan p:environment:database \
     --host="127.0.0.1" \
     --port="3306" \
     --database="$MYSQL_DB" \
