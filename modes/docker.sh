@@ -130,13 +130,25 @@ configure_panel() {
   fi
 
   output "Creating admin user .."
-  $DC exec -T panel php artisan p:user:make \
-    --email="$EMAIL" \
-    --username="admin" \
-    --name-first="Admin" \
-    --name-last="User" \
-    --password="$USER_PASSWORD" \
-    --admin=1
+  local ready=false
+  for _ in $(seq 1 12); do
+    if $DC exec -T panel php artisan p:user:make \
+        --email="$EMAIL" \
+        --username="admin" \
+        --name-first="Admin" \
+        --name-last="User" \
+        --password="$USER_PASSWORD" \
+        --admin=1 >/dev/null 2>&1; then
+      ready=true
+      break
+    fi
+    sleep 5
+  done
+
+  if [ "$ready" != true ]; then
+    error "Panel did not configure in time. Check logs with 'cd $INSTALL_DIR && $DC logs panel'."
+    exit 1
+  fi
 
   success "Panel configured"
 }

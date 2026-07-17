@@ -471,7 +471,7 @@ main() {
 
   # Set FQDN
   while [ -z "$HOSTNAME" ]; do
-    echo -n "* Set the FQDN of this panel (panel.example.com): "
+    echo -n "* FQDN or IP for the panel: "
     read -r HOSTNAME
     [ -z "$HOSTNAME" ] && error "FQDN cannot be empty"
   done
