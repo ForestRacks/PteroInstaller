@@ -37,7 +37,7 @@ done
 
 export REPO BRANCH
 export GIT_REPO_URL="https://raw.githubusercontent.com/$REPO/$BRANCH"
-LOG_PATH="/var/log/pteroinstaller.log"
+LOG_PATH="/tmp/pteroinstaller.log"
 
 # Exit with error status code if user is not root
 if [[ $EUID -ne 0 ]]; then
